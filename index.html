@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ứng dụng Quản lý Khách hàng</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: red;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            overflow: hidden;
+            position: relative;
+            min-width: 50px;
+            min-height: 30px;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="date"], textarea {
+            width: 100%;
+            padding: 5px;
+            margin: 5px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        button {
+            background-color: blue;
+            color: white;
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.3);
+        }
+        button:active {
+            transform: scale(0.98);
+            box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.2);
+        }
+        .ordered {
+            background-color: #90EE90;
+        }
+        .medicine-ordered {
+            background-color: orange;
+        }
+        .resizer {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 10px;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.1);
+            cursor: se-resize;
+            z-index: 1000;
+        }
+        .column-resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.1);
+            cursor: col-resize;
+            z-index: 1000;
+        }
+        .resizing {
+            user-select: none;
+        }
+        #customerTable th:first-child,
+        #customerTable td:first-child {
+            width: 50px;
+        }
+        .guide-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 900px;
+            height: 900px;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow: auto;
+        }
+        .popup-content {
+            margin-bottom: 20px;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 10px;
+            height: 10px;
+            background-color: #ccc;
+            cursor: se-resize;
+        }
+        #declarationForm {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #declarationForm input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        textarea {
+            resize: both;
+            min-height: 50px;
+        }
+        .group-header {
+            background-color: #f0f0f0 !important;
+            font-weight: bold;
+            padding: 10px !important;
+        }
+        #warningPopup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1001;
+        }
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ffeeba;
+            padding-bottom: 10px;
+        }
+        .timer-display {
+            background-color: #856404;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .firebase-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .firebase-connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .firebase-disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .firebase-syncing {
+            background-color: #ff9800;
+            color: white;
+        }
+        .control-panel {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .stats-panel {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>QUẢN LÝ KHÁCH HÀNG TRONG KỲ <span id="firebaseStatus" class="firebase-status firebase-disconnected">Đang kết nối...</span></h1>
+    
+    <h2>Mục tiêu tỉ lệ KH đặt hàng > 80% tổng khách hàng quản lý/tháng</h2>
+    
+    <div class="control-panel">
+        <form id="declarationForm">
+            <input type="text" id="fullName" placeholder="Họ tên (dùng để xem thống kê)" required>
+            <input type="text" id="department" placeholder="Bộ phận" required>
+            <input type="date" id="date" required>
+        </form>
+        
+        <div style="margin-top: 10px;">
+            <button class="guide-button" onclick="showGuide()">Hướng dẫn</button>
+            <button onclick="showVideoPopup()">Hướng dẫn video</button>
+        </div>
+    </div>
+
+    <div id="videoPopup" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); width:1000px; height:600px; background:white; box-shadow:0 4px 8px rgba(0,0,0,0.2); border-radius:10px; z-index:1000; overflow:hidden; resize:both;">
+        <iframe id="videoFrame" src="https://www.youtube.com/embed/iK-iDa32Bh8" style="width:100%; height:100%; border:none;"></iframe>
+        <button onclick="closeVideoPopup()" style="position:absolute; top:10px; right:10px; background:red; color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer; font-size:18px;">&times;</button>
+    </div>
+    <div id="popupOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;" onclick="closeVideoPopup()"></div>
+
+    <div class="control-panel">
+        <h2>Quản lý Khách hàng</h2>
+        
+        <div style="margin-bottom: 10px;">
+            <button onclick="addNewCustomer()">Thêm mới</button>
+            <input type="file" id="fileUpload" accept=".xlsx, .xls">
+            <button onclick="uploadExcel()">Upload Excel DSKH</button>
+            <button onclick="syncData()">Đồng bộ</button>
+            <input type="file" id="updateFileUpload" accept=".xlsx, .xls">
+            <button onclick="updateData()">Cập nhật DSKH excel</button>
+        </div>
+        
+        <div style="margin-bottom: 10px;">
+            <button onclick="saveJSON()">Lưu JSON</button>
+            <input type="file" id="jsonFileUpload" accept=".json">
+            <button onclick="openJSON()">Mở JSON</button>
+            <button onclick="reloadExcel()">Tải lại Excel</button>
+            <button onclick="exportExcel()">Xuất Excel</button>
+        </div>
+        
+        <div style="margin-bottom: 10px;">
+            <label for="appKeyInput" style="font-weight: bold; margin-right: 10px;">Mã ứng dụng:</label>
+            <input type="text" id="appKeyInput" placeholder="VD: app1" style="
+                width: 150px;
+                padding: 5px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+            ">
+            <button onclick="saveToLocalStorage(document.getElementById('appKeyInput').value)">Lưu dữ liệu</button>
+            <button onclick="loadFromLocalStorage(document.getElementById('appKeyInput').value)">Tải dữ liệu</button>
+        </div>
+        
+        <div style="margin-bottom: 10px;">
+            <button onclick="saveToFirebase()">Lưu lên Firebase</button>
+            <button onclick="loadFromFirebase()">Tải từ Firebase</button>
+            <button onclick="showSortPopup()">Sắp xếp</button>
+            <button onclick="exportHTML()">Xuất file HTML quy định</button>
+        </div>
+        
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="searchInput" placeholder="Tìm kiếm chung...">
+            <button onclick="searchCustomers()">Tìm</button>
+            <input type="text" id="staffSearchInput" placeholder="Tên nhân viên phụ trách...">
+            <button onclick="searchByStaff()">Tìm theo NV</button>
+            <button onclick="hideRows()">Ẩn hàng chọn</button>
+            <button onclick="unhideRows()">Không ẩn</button>
+            <button onclick="openStaffSelection()">Chọn nhân viên để ẩn</button>
+            <button onclick="resetData()" style="background-color: orange; color: white; padding: 10px; margin: 5px; font-weight: bold;">Refresh dữ liệu</button>
+        </div>
+        
+        <div style="margin-top: 10px;">
+            <input type="file" id="orderUpdateFile" accept=".xlsx, .xls" style="margin-top: 10px;">
+            <button onclick="updateOrderData()" style="background-color: blue; color: white; padding: 10px; margin: 5px; font-weight: bold;">Up file đơn hàng trong kỳ</button>
+        </div>
+    </div>
+
+    <table id="customerTable">
+        <thead>
+            <tr>
+                <th>Chọn</th>
+                <th>STT</th>
+                <th>MÃ</th>
+                <th>Khách hàng</th>
+                <th>Người liên hệ</th>
+                <th>Điện thoại</th>
+                <th>Email</th>
+                <th>Khu vực</th>
+                <th>Địa chỉ</th>
+                <th>Nhân viên phụ trách</th>
+                <th>Đặt hàng non-drugs</th>
+                <th>Đặt hàng thuốc</th>
+                <th>Báo cáo - ghi chú giao dịch</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="stats" class="stats-panel"></div>
+
+    <div id="guidePopup" class="popup">
+        <div class="popup-content">
+           <h2>Hướng dẫn sử dụng</h2>
+			<p style="line-height: 1.8;">
+			<strong><u>Bước 1:</u></strong><br>
+			Cấp quản lý sẽ quản lý dữ liệu để up lên dứng dụng này từ việc chọn kỳ tứ ngày 1-1-2023 đến này, xuất file excel từ ERP-DANH SÁCH KHÁCH KHÁNG.<br>
+			Sau đó, file excel này sẽ được bỏ các tiêu đề phụ chỉ chừa lại dữ liệu theo cấu trúc khung của ứng dụng này gồm:<br>
+			*STT	MÃ	- Khách hàng -	Người liên hệ	Điện thoại	- Email	Khu vực	 - Địa chỉ -	Nhân viên phụ trách <br>
+			*Sau đó, có thể nhóm theo ứng đối tượng : Nhà Thuốc - công ty dược- chuỗi - bán lẻ -ctv ; hay nhóm theo khu vực khách hàng điều được<br>
+			*( Chú ý loại bổ khách hàng không hợp tác- chuỗi NT lời lớn ra)<br>
+			* Up file đã sắp xếp lên ứng dụng ERP quản lý khách hàng này- chọn đồng bộ để file load lên hết - sau đó bấm lưu file json lại để Lưu<br>
+			* File này là file đối chứng định kỳ cuối thàng cập nhật 1 lần lại- cách cập nhật là chỉ cần thêm mã khách hàng tên , địa chỉ- khu vực- nhân viên phụ trách;
+			sau đó bấm lưu<br>
+			<strong><u>Bước 2: </u></strong><br>
+			*Phân bổ tên nhân phụ trách vào - lúc này tùy theo bàn bạc BGĐ hay đề xuất , người quản lý sẽ điền tên nhân viên vào khách hàng mà muốn giao<br>
+			*Khi điền tên nhân xong, thì nhớ bấm lưu file json để lưu tên họ lại- file này dùng chia sẽ cho BGĐ để xem đồng bộ và để gởi cho nhân viên sau này.<br>
+			<strong><u>Bước 3:</u></strong><br>
+			Nhân viên mở máy tính vào: khai tên trong form trùng với tên trong dữ liệu thì lúc đó sẽ chạy thống kê số liệu được.<br>
+			Để chạy số liệu do máy mình khai báo, thì phải bấm đồng bộ lại một lần nữa. Các em có thể lọc riêng tên của mình phụ trách để theo dõi cho tiện<br>
+						
+		            1. Đây là một trong nội dung bắt buột tất cả nhân viên kinh doanh phải quản lý và khai báo thay cho báo cáo cuối kỳ.<br>
+			2. Việc thực hiện tốt giúp kiểm soát hiệu quả xúc tiến- chăm sóc khách hàng trong kỳ và tăng doanh thu , tạo tăng trưởng.<br>
+			3. Dữ liệu file excel để đồng bộ lên ứng dụng cần quản lý theo dõi trong kỳ, làm căn cứ đánh giá kỳ trước so với ỳ sau.<br>
+			<strong>4. Lưu ý: Sau mỗi cuối tháng, em phải xuất ra file excel lưu lại danh sách mới để upload lại cho kỳ đầu tháng tới ( nhớ dùng đúng mẫu file khi đồng bộ).</strong><br>
+			<strong> * Ngoài ra có một cách khác: là đầu tháng sau khi khai ngày lập, bạn gở bỏ các chọn màu đặt hàng thàng qua của khách hàng trở về trạng thái trắng hết- sau đó bấm lưu vào máy.</strong><br>
+			<strong> * Danh sách khách hàng cuối kỳ chạy từ đơn hàng chọn kỳ đã lập kỳ trước, từ khách hàng đã được công ty giao, từ khách hàng nên thường xuyên cập nhật lại cuối kỳ.<br>
+			5. Dữ liệu file excel về khách hàng nên được quản lý, sắp xếp theo từng nhóm đối tượng phụ trách: nhà thuốc, đại lý phân phối, chuỗi NT hay khác.</strong><br>
+			6. Đầu tiên chuẩn bị danh sách khách hàng mà công ty đã giao kể cả khách hàng do cá nhân khai thác trong file excel theo form chung trong ứng dụng.<br>
+			8. Mở file từ tứng dụng và chọn upload file excel để đồng bộ dự liệu trên ứng dụng để quản lý.<br>
+			8. Khi thao tác hay điền thông tin xong nhớ phải bấm lưu file: có 2 dạng lưu fiie: bấm lưu vào máy sẽ lưu dữ liệu trong máy đang làm cố định;<br>
+			     <span style="display: inline-block; text-indent: 20px;">- Bấm lưu file có đuổi JSON và cất file vào trong thư mục trên GOOGLE DRIVE ( giống như tủ hồ sơ chung 0, tạo thử mục tên mình, tiêu đề và lưu file.</span><br>
+				 <span style="display: inline-block; text-indent: 20px;">- File JSON có thể qua máy khách mở ứng dụng và chọn file lên sẽ mở JSON khi đó nó sẽ đồng bộ dữ liệu đã làm từ máy khác và có thể chỉnh sửa.</span><br>
+				 <span style="display: inline-block; text-indent: 20px;">- Lưu khi khi làm xong nhớ bấm lưu file hay lưu file json để bảo lưu dữ liệu cuối kỳ báo cáo.</span><br>
+					 
+			9. Chức năng xuất file html dùng để thay bảng báo cáo cuối kỳ- file html được gởi trong các kỳ hợp đánh giá nội bộ kinh doanh trong tuần, gởi đến cấp quản lý.<br>
+			   việc gởi HTML thay cho báo cáo- nên được lưu tên file tại thời gian lưu và gởi định kỳ đến cấp quản lý và ban giám đốc yêu cầu trong tuần, cuối tháng.<br>
+			10. Quản lý khách hàng đặt hàng trong kỳ là thước đo và đánh giá kết quả KPI trong kỳ của mình và tính độ tăng trưởng khách hàng.<br>
+			11. Khi phát triển khách hàng mới có đặt hàng trong kỳ, nhân viên nên khai báo trong bảng này sau khi đã khai báo trên ERP 
+			   </p>
+        </div>
+        <span class="close-button" onclick="closeGuide()">&times;</span>
+        <div class="resize-handle"></div>
+    </div>
+
+    <div id="sortPopup" class="popup">
+        <div class="popup-content">
+            <h3>Sắp xếp theo</h3>
+            <select id="sortField">
+                <option value="1">Mã</option>
+                <option value="6">Khu vực</option>
+                <option value="8">Nhân viên phụ trách</option>
+            </select>
+            <button onclick="groupAndSortData()">Nhóm và sắp xếp</button>
+            <button onclick="closeSortPopup()">Đóng</button>
+        </div>
+    </div>
+
+    <div id="warningPopup">
+        <div class="popup-header">
+            <h3>Cảnh báo!</h3>
+            <div class="timer-display">
+                Thời gian hiển thị: <span id="countdown">8</span>s
+            </div>
+            <span class="close-button">&times;</span>
+        </div>
+        <div class="popup-content">
+            <p>Số khách hàng do em quản lý đặt hàng còn rất thập- hãy tập trung hết mình tương tác<br>
+			   chốt đơn họ nhanh hơn- tận dụng mọi hỗ trợ- sản phẩm mới- khơi gợi nhanh để về mục tiêu đặt hàng.<br>
+			   Cần nhanh chóng kiểm tra kế hoạch lại- điều phối khách hàng nhanh hơn.<br>
+			Kinh nghiệm bí quyết có đơn : đừng chỉ hỏi thăm hàng cũ lúc đầu câu tiếp xuc, mà luôn chuẩn bị một tính huống mới để bắt đầu chia sẽ<br>
+			,xem đơn hàng kỳ trước khách hàng ko lấy sản phẩm, hay sản phẩm mới, thì tận dụng để xúc tiếp mở rộng cơ hội chốt sản phẩm mới bên cạnh lên đơn hàng sản><br>
+			sản phẩm hiện tại. Em phải chủ đông gợi nhu cầu đặt mục tiêu phải bán được một cách có thển khi đã nói chuyên. <br>
+			</p>
+        </div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <div id="reminderOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1001;"></div>
+    <div id="reminderPopup" class="popup" style="display:none; z-index: 1002; width: 600px; height: auto; max-height: 80vh; background-color: #ffffe0; border: 2px solid #f44336; padding: 0; border-radius: 8px;">
+        <div class="popup-header" style="background-color: #f44336; color: white; padding: 10px 15px; border-radius: 6px 6px 0 0; margin: 0; border-bottom: none;">
+            <h3 style="margin: 0; color: white; font-size: 18px;">🔔 EM ƠI ! SAO KHÔNG TƯƠNG TÁC KHÁCH HÀNG NÀY CÓ ĐƠN</h3>
+        </div>
+        <div class="popup-content" id="reminderContent" style="padding: 20px; max-height: calc(80vh - 120px); overflow-y: auto; margin-bottom: 0;">
+            </div>
+        <div style="text-align: center; padding: 15px; border-top: 1px solid #ddd; background-color: #f9f9f9; border-radius: 0 0 6px 6px;">
+            <button onclick="closeReminderPopup()" style="background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px;">Đã đọc</button>
+        </div>
+    </div>
+
+<script>
+    // Firebase Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyDKNLLhisemYQJeCW8QCOwfbvVsvUur-60",
+        authDomain: "quetbarcode-2361a.firebaseapp.com",
+        databaseURL: "https://quetbarcode-2361a-default-rtdb.firebaseio.com",
+        projectId: "quetbarcode-2361a",
+        storageBucket: "quetbarcode-2361a.firebasestorage.app",
+        messagingSenderId: "209619008657",
+        appId: "1:209619008657:web:ee4af6f6ec567a1d745330",
+        measurementId: "G-2TRYH9DYK5"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // Firebase connection status
+    firebase.database().ref('.info/connected').on('value', (snapshot) => {
+        const statusElement = document.getElementById('firebaseStatus');
+        if (snapshot.val() === true) {
+            statusElement.textContent = 'Đã kết nối Firebase';
+            statusElement.className = 'firebase-status firebase-connected';
+        } else {
+            statusElement.textContent = 'Mất kết nối Firebase';
+            statusElement.className = 'firebase-status firebase-disconnected';
+        }
+    });
+
+    // Global variables
+    let customers = [];
+    let currentCustomerCode = 1;
+    let hiddenRows = [];
+
+    // Firebase functions
+    function saveToFirebase() {
+        try {
+            const statusElement = document.getElementById('firebaseStatus');
+            statusElement.textContent = 'Đang lưu lên Firebase...';
+            statusElement.className = 'firebase-status firebase-syncing';
+            
+            database.ref('customerManagement/customers').set(customers)
+                .then(() => {
+                    statusElement.textContent = 'Đã lưu lên Firebase';
+                    statusElement.className = 'firebase-status firebase-connected';
+                    console.log('Dữ liệu đã được lưu lên Firebase');
+                    alert('Dữ liệu đã được lưu lên Firebase thành công!');
+                })
+                .catch((error) => {
+                    statusElement.textContent = 'Lỗi kết nối Firebase';
+                    statusElement.className = 'firebase-status firebase-disconnected';
+                    console.error('Lỗi khi lưu dữ liệu lên Firebase:', error);
+                    alert('Có lỗi xảy ra khi lưu dữ liệu lên Firebase: ' + error.message);
+                });
+        } catch (error) {
+            console.error('Lỗi khi lưu dữ liệu lên Firebase:', error);
+            alert('Có lỗi xảy ra khi lưu dữ liệu lên Firebase: ' + error.message);
+        }
+    }
+
+    function loadFromFirebase() {
+        try {
+            const statusElement = document.getElementById('firebaseStatus');
+            statusElement.textContent = 'Đang tải từ Firebase...';
+            statusElement.className = 'firebase-status firebase-syncing';
+            
+            database.ref('customerManagement/customers').once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        customers = data;
+                        currentCustomerCode = Math.max(...customers.map(c => {
+                            const num = parseInt(c.code?.replace('KH', '') || '0');
+                            return isNaN(num) ? 0 : num;
+                        })) + 1;
+                        renderTable();
+                        statusElement.textContent = 'Đã tải từ Firebase';
+                        statusElement.className = 'firebase-status firebase-connected';
+                        alert('Đã tải dữ liệu từ Firebase thành công!');
+                    } else {
+                        statusElement.textContent = 'Đã kết nối Firebase';
+                        statusElement.className = 'firebase-status firebase-connected';
+                        alert('Không có dữ liệu trên Firebase.');
+                    }
+                })
+                .catch((error) => {
+                    statusElement.textContent = 'Lỗi kết nối Firebase';
+                    statusElement.className = 'firebase-status firebase-disconnected';
+                    console.error('Lỗi khi tải dữ liệu từ Firebase:', error);
+                    alert('Có lỗi xảy ra khi tải dữ liệu từ Firebase: ' + error.message);
+                });
+        } catch (error) {
+            console.error('Lỗi khi tải dữ liệu từ Firebase:', error);
+            alert('Có lỗi xảy ra khi tải dữ liệu từ Firebase: ' + error.message);
+        }
+    }
+
+    // Auto-save to Firebase when data changes
+    function autoSaveToFirebase() {
+        // Only auto-save if we have customers data
+        if (customers.length > 0) {
+            setTimeout(() => {
+                saveToFirebase();
+            }, 1000);
+        }
+    }
+
+    // Customer management functions
+    function addNewCustomer() {
+        const newCustomer = {
+            code: `KH${currentCustomerCode++}`,
+            name: '',
+            contact: '',
+            phone: '',
+            email: '',
+            area: '',
+            address: '',
+            staff: '',
+            ordered: false,
+            medicineOrdered: false,
+            note: ''
+        };
+        customers.push(newCustomer);
+        renderTable();
+        autoSaveToFirebase();
+    }
+
+    function renderTable() {
+        const tbody = document.querySelector('#customerTable tbody');
+        tbody.innerHTML = '';
+        customers.forEach((customer, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="checkbox"></td>
+                <td>${index + 1}<div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.code || ''}" onchange="updateCustomer(${index}, 'code', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.name || ''}" onchange="updateCustomer(${index}, 'name', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.contact || ''}" onchange="updateCustomer(${index}, 'contact', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.phone || ''}" onchange="updateCustomer(${index}, 'phone', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.email || ''}" onchange="updateCustomer(${index}, 'email', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.area || ''}" onchange="updateCustomer(${index}, 'area', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.address || ''}" onchange="updateCustomer(${index}, 'address', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="text" value="${customer.staff || ''}" onchange="updateCustomer(${index}, 'staff', this.value)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="checkbox" ${customer.ordered ? 'checked' : ''} onchange="updateCustomer(${index}, 'ordered', this.checked)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><input type="checkbox" ${customer.medicineOrdered ? 'checked' : ''} onchange="updateCustomer(${index}, 'medicineOrdered', this.checked)"><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><textarea onchange="updateCustomer(${index}, 'note', this.value)">${customer.note || ''}</textarea><div class="resizer"></div><div class="column-resizer"></div></td>
+                <td><button onclick="deleteCustomer(${index})">Xóa</button><div class="resizer"></div><div class="column-resizer"></div></td>
+            `;
+            if (customer.ordered) {
+                tr.classList.add('ordered');
+            }
+            if (customer.medicineOrdered) {
+                tr.classList.add('medicine-ordered');
+            }
+            tbody.appendChild(tr);
+        });
+        updateStats();
+        setupResizers();
+    }
+
+    function updateCustomer(index, field, value) {
+        customers[index][field] = value;
+        if (field === 'ordered' || field === 'medicineOrdered') {
+            renderTable();
+            autoSaveToFirebase();
+        } else {
+            updateStats();
+        }
+    }
+
+    function deleteCustomer(index) {
+        if (confirm('Bạn có chắc chắn muốn xóa khách hàng này?')) {
+            customers.splice(index, 1);
+            renderTable();
+            autoSaveToFirebase();
+        }
+    }
+
+    function updateStats() {
+        const declaredStaff = document.getElementById('fullName').value.trim().toLowerCase();
+
+        if (!declaredStaff) {
+            document.getElementById('stats').innerHTML = `
+                <span style="color: red">Vui lòng khai báo họ tên để tính toán số liệu</span>
+            `;
+            return;
+        }
+
+        // Filter customers by declared staff
+        const staffCustomers = customers.filter(c => c.staff.toLowerCase().trim() === declaredStaff);
+        const staffTotal = staffCustomers.length;
+
+        // Count orders
+        const staffOrdered = staffCustomers.filter(c => c.ordered || c.medicineOrdered).length;
+        const staffMedicineOrdered = staffCustomers.filter(c => c.medicineOrdered).length;
+
+        // Calculate rates
+        const staffRate = staffTotal > 0 ? ((staffOrdered / staffTotal) * 100).toFixed(2) : 0;
+        const staffMedicineRate = staffTotal > 0 ? ((staffMedicineOrdered / staffTotal) * 100).toFixed(2) : 0;
+
+        // Display results
+        document.getElementById('stats').innerHTML = `
+            Tổng số khách hàng của ${declaredStaff}: ${staffTotal}<br>
+            Số khách hàng đã đặt hàng: ${staffOrdered}<br>
+            Số khách hàng đã đặt hàng thuốc: ${staffMedicineOrdered}<br>
+            Tỉ lệ đặt hàng tổng thể: ${staffRate}%<br>
+            Tỉ lệ đặt hàng thuốc: ${staffMedicineRate}%
+        `;
+    }
+
+    // Excel functions
+    function uploadExcel() {
+        const fileInput = document.getElementById('fileUpload');
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                        raw: false,
+                        defval: "",
+                        header: ["STT", "MÃ", "Khách hàng", "Người liên hệ", "Điện thoại", "Email", "Khu vực", "Địa chỉ", "Nhân viên phụ trách", "Đã đặt hàng", "Đặt hàng thuốc", "Ghi chú"]
+                    });
+
+                    // Update customer list
+                    customers = jsonData.map((row, index) => {
+                        return {
+                            code: row['MÃ'] || `KH${index + 1}`,
+                            name: row['Khách hàng'] || '',
+                            contact: row['Người liên hệ'] || '',
+                            phone: row['Điện thoại'] || '',
+                            email: row['Email'] || '',
+                            area: row['Khu vực'] || '',
+                            address: row['Địa chỉ'] || '',
+                            staff: row['Nhân viên phụ trách'] || '',
+                            ordered: row['Đã đặt hàng'] === 'Có',
+                            medicineOrdered: row['Đặt hàng thuốc'] === 'Có',
+                            note: row['Ghi chú'] || ''
+                        };
+                    });
+
+                    // Ensure unique customer codes
+                    currentCustomerCode = Math.max(...customers.map(c => parseInt(c.code.replace('KH', '')) || 0)) + 1;
+
+                    renderTable();
+                    autoSaveToFirebase();
+                    alert('Đã tải lên và xử lý file Excel thành công!');
+                } catch (error) {
+                    console.error('Lỗi khi xử lý file Excel:', error);
+                    alert('Có lỗi xảy ra khi xử lý file Excel. Vui lòng kiểm tra lại.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        } else {
+            alert('Vui lòng chọn một file Excel để tải lên.');
+        }
+    }
+
+    function updateData() {
+        const fileInput = document.getElementById('updateFileUpload');
+        const file = fileInput.files[0];
+        
+        if (file) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+
+                    const newData = XLSX.utils.sheet_to_json(worksheet, {
+                        raw: false,
+                        defval: "",
+                        header: ["STT", "MÃ", "Khách hàng", "Người liên hệ", "Điện thoại", "Email", "Khu vực", "Địa chỉ", "Nhân viên phụ trách", "Đã đặt hàng", "Đặt hàng thuốc", "Ghi chú"]
+                    });
+
+                    newData.forEach(row => {
+                        const newCustomer = {
+                            code: row['MÃ'],
+                            name: row['Khách hàng'],
+                            contact: row['Người liên hệ'],
+                            phone: row['Điện thoại'],
+                            email: row['Email'],
+                            area: row['Khu vực'],
+                            address: row['Địa chỉ'],
+                            staff: row['Nhân viên phụ trách'],
+                            ordered: row['Đã đặt hàng'] === 'Có',
+                            medicineOrdered: row['Đặt hàng thuốc'] === 'Có',
+                            note: row['Ghi chú']
+                        };
+
+                        // Find duplicate record
+                        const duplicateIndex = customers.findIndex(customer =>
+                            customer.code === newCustomer.code &&
+                            customer.name === newCustomer.name &&
+                            customer.contact === newCustomer.contact &&
+                            customer.phone === newCustomer.phone &&
+                            customer.email === newCustomer.email &&
+                            customer.area === newCustomer.area &&
+                            customer.address === newCustomer.address &&
+                            customer.staff === newCustomer.staff
+                        );
+
+                        if (duplicateIndex !== -1) {
+                            const overwrite = confirm(`Dữ liệu cho khách hàng "${newCustomer.name}" đã tồn tại. Bạn có muốn chép đè lên không?`);
+
+                            if (overwrite) {
+                                customers[duplicateIndex] = newCustomer;
+                            } else {
+                                customers.push(newCustomer);
+                            }
+                        } else {
+                            customers.push(newCustomer);
+                        }
+                    });
+
+                    renderTable();
+                    autoSaveToFirebase();
+                    alert('Cập nhật dữ liệu thành công!');
+                } catch (error) {
+                    console.error('Lỗi khi xử lý file Excel:', error);
+                    alert('Có lỗi xảy ra khi cập nhật dữ liệu từ file Excel.');
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        } else {
+            alert('Vui lòng chọn một file Excel đơn hàng để cập nhật.');
+        }
+    }
+
+    function updateOrderData() {
+        const fileInput = document.getElementById('orderUpdateFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Vui lòng chọn một file Excel Đơn Hàng để cập nhật đơn hàng.');
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+
+                // Read data from Excel file
+                const newData = XLSX.utils.sheet_to_json(worksheet, {
+                    raw: false,
+                    defval: "",
+                    header: ["STT", "Mã", "Ngày", "Khách hàng", "Mã số thuế", "Nhân viên", "Số lượng", "Tổng tiền", "Hình thức nợ", "Số tiền nợ", "Hạn thanh toán", "Thu hộ?", "Ký gửi?", "Thuốc?", "Hóa đơn VAT một phần?", "Hóa đơn VAT toàn phần?", "Ghi chú", "Xác nhận?", "Duyệt?", "Ngày hóa đơn", "Ngày Xuất hàng"]
+                });
+
+                let updatesCount = 0;
+
+                newData.forEach(row => {
+                    const customerName = row["Khách hàng"]?.trim();
+                    const isMedicineOrder = row["Thuốc?"]?.toString().trim().toUpperCase() === "TRUE";
+
+                    if (!customerName) {
+                        console.warn(`Bỏ qua dòng thiếu dữ liệu: ${JSON.stringify(row)}`);
+                        return;
+                    }
+
+                    // Find customer in application list
+                    const customer = customers.find(c =>
+                        c.name?.trim().toLowerCase() === customerName.toLowerCase()
+                    );
+
+                    if (customer) {
+                        if (isMedicineOrder) {
+                            // Tick "Đặt hàng thuốc" and untick "Đặt hàng non-drugs"
+                            customer.medicineOrdered = true;
+                            customer.ordered = false;
+                            console.log(`Tick Đặt hàng thuốc cho khách hàng: ${customerName}`);
+                        } else {
+                            // Tick "Đặt hàng non-drugs" and untick "Đặt hàng thuốc"
+                            customer.ordered = true;
+                            customer.medicineOrdered = false;
+                            console.log(`Tick Đặt hàng non-drugs cho khách hàng: ${customerName}`);
+                        }
+                        updatesCount++;
+                    } else {
+                        console.warn(`Không tìm thấy khách hàng: ${customerName}`);
+                    }
+                });
+
+                // Update table interface
+                renderTable();
+                autoSaveToFirebase();
+                alert(`Cập nhật đơn hàng thành công! Số lượng khách hàng được cập nhật: ${updatesCount}`);
+            } catch (error) {
+                console.error('Lỗi khi xử lý file Excel:', error);
+                alert('Có lỗi xảy ra khi xử lý file Excel. Vui lòng kiểm tra lại.');
+            }
+        };
+
+        reader.readAsArrayBuffer(file);
+    }
+
+    function exportHTML() {
+        const fullName = document.getElementById('fullName').value.trim();
+        const department = document.getElementById('department').value.trim();
+        const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
+
+        if (!fullName || !department) {
+            alert("Vui lòng khai báo đầy đủ Họ tên và Bộ phận trước khi xuất file.");
+            return;
+        }
+
+        const fileName = `Baocaotheodoikhachhang-${department}-${date}.html`;
+
+        let dataToExport = `
+        <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Báo cáo theo dõi khách hàng</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; padding: 20px; background-color: #f9f9f9; color: #333; }
+                    h1, h2 { text-align: center; color: #007bff; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #007bff; color: white; }
+                    td { background-color: #f5f5f5; }
+                    .metadata { margin-bottom: 20px; padding: 10px; background-color: #007bff; color: white; border-radius: 5px; }
+                    .metadata p { margin: 0; }
+                </style>
+            </head>
+            <body>
+                <h1>Báo cáo theo dõi khách hàng</h1>
+                <div class="metadata">
+                    <p><strong>Người lập báo cáo:</strong> ${fullName}</p>
+                    <p><strong>Bộ phận:</strong> ${department}</p>
+                    <p><strong>Ngày lập:</strong> ${date}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>MÃ</th>
+                            <th>Khách hàng</th>
+                            <th>Người liên hệ</th>
+                            <th>Điện thoại</th>
+                            <th>Email</th>
+                            <th>Khu vực</th>
+                            <th>Địa chỉ</th>
+                            <th>Nhân viên phụ trách</th>
+                            <th>Đặt hàng non-drugs</th>
+                            <th>Đặt hàng thuốc</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+        customers.forEach((customer, index) => {
+            dataToExport += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${customer.code}</td>
+                    <td>${customer.name}</td>
+                    <td>${customer.contact}</td>
+                    <td>${customer.phone}</td>
+                    <td>${customer.email}</td>
+                    <td>${customer.area}</td>
+                    <td>${customer.address}</td>
+                    <td>${customer.staff}</td>
+                    <td>${customer.ordered ? "Có" : "Không"}</td>
+                    <td>${customer.medicineOrdered ? "Có" : "Không"}</td>
+                    <td>${customer.note}</td>
+                </tr>`;
+        });
+
+        dataToExport += `
+                    </tbody>
+                </table>
+            </body>
+        </html>`;
+
+        const blob = new Blob([dataToExport], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        alert(`Đã xuất file HTML: ${fileName}`);
+    }
+
+    function exportExcel() {
+        const ws = XLSX.utils.json_to_sheet(customers.map(c => ({
+            STT: c.code,
+            MÃ: c.code,
+            "Khách hàng": c.name,
+            "Người liên hệ": c.contact,
+            "Điện thoại": c.phone,
+            Email: c.email,
+            "Khu vực": c.area,
+            "Địa chỉ": c.address,
+            "Nhân viên phụ trách": c.staff,
+            "Đã đặt hàng": c.ordered ? "TRUE" : "FALSE",
+            "Đặt hàng thuốc": c.medicineOrdered ? "TRUE" : "FALSE",
+            "Ghi chú": c.note
+        })));
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Customers");
+
+        const fullName = document.getElementById('fullName').value || 'unknown';
+        const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
+        const fileName = `${fullName}-dulieukh-${date}.xlsx`;
+
+        XLSX.writeFile(wb, fileName);
+    }
+
+    function saveJSON() {
+        try {
+            const fullName = document.getElementById('fullName').value.trim();
+            const department = document.getElementById('department').value.trim();
+            const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
+
+            if (!fullName || !department) {
+                alert("Vui lòng khai báo đầy đủ Họ tên và Bộ phận trước khi lưu file.");
+                return;
+            }
+
+            const fileName = `Baocaotheodoikhachhang-${department}-${date}.json`;
+
+            const dataToSave = customers.map(customer => ({
+                code: customer.code || '',
+                name: customer.name || '',
+                contact: customer.contact || '',
+                phone: customer.phone || '',
+                email: customer.email || '',
+                area: customer.area || '',
+                address: customer.address || '',
+                staff: customer.staff || '',
+                ordered: Boolean(customer.ordered),
+                medicineOrdered: Boolean(customer.medicineOrdered),
+                note: customer.note || ''
+            }));
+
+            const jsonString = JSON.stringify(dataToSave, null, 2);
+            const blob = new Blob([jsonString], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert(`Đã lưu file JSON: ${fileName}`);
+        } catch (error) {
+            console.error('Lỗi khi lưu file JSON:', error);
+            alert(`Có lỗi xảy ra khi lưu file JSON: ${error.message}`);
+        }
+    }
+
+    function openJSON() {
+        const fileInput = document.getElementById('jsonFileUpload');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            alert('Vui lòng chọn một file JSON để tải lên.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const jsonData = JSON.parse(e.target.result);
+                customers = jsonData;
+                currentCustomerCode = Math.max(...customers.map(c => {
+                    const num = parseInt(c.code.replace('KH', ''));
+                    return isNaN(num) ? 0 : num;
+                })) + 1;
+                renderTable();
+                autoSaveToFirebase();
+                alert('Đã tải lên và xử lý file JSON thành công!');
+            } catch (error) {
+                console.error('Lỗi khi xử lý file JSON:', error);
+                alert(`Có lỗi xảy ra khi xử lý file JSON: ${error.message}`);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // Resize functions
+    function setupResizers() {
+        const table = document.getElementById('customerTable');
+        const cols = table.querySelectorAll('th, td');
+
+        cols.forEach(col => {
+            const columnResizer = col.querySelector('.column-resizer');
+            const cellResizer = col.querySelector('.resizer');
+
+            if (columnResizer) {
+                columnResizer.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    const startX = e.pageX;
+                    const startWidth = col.offsetWidth;
+
+                    function onMouseMove(e) {
+                        const width = startWidth + (e.pageX - startX);
+                        col.style.width = `${width}px`;
+                    }
+
+                    function onMouseUp() {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    }
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+            }
+
+            if (cellResizer) {
+                cellResizer.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    const startX = e.pageX;
+                    const startY = e.pageY;
+                    const startWidth = col.offsetWidth;
+                    const startHeight = col.offsetHeight;
+
+                    function onMouseMove(e) {
+                        const width = startWidth + (e.pageX - startX);
+                        const height = startHeight + (e.pageY - startY);
+                        col.style.width = `${width}px`;
+                        col.style.height = `${height}px`;
+                    }
+
+                    function onMouseUp() {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    }
+
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+            }
+        });
+    }
+
+    // Other functions
+    function syncData() {
+        renderTable();
+        alert("Đã đồng bộ dữ liệu.");
+    }
+
+    function reloadExcel() {
+        renderTable();
+        alert("Đã tải lại dữ liệu Excel.");
+    }
+
+    function saveToLocalStorage(appKey) {
+        if (!appKey) {
+            alert("Vui lòng nhập mã ứng dụng để lưu dữ liệu.");
+            return;
+        }
+        localStorage.setItem(`data_${appKey}`, JSON.stringify(customers));
+        alert(`Dữ liệu đã được lưu cho ứng dụng: ${appKey}`);
+    }
+
+    function loadFromLocalStorage(appKey) {
+        if (!appKey) {
+            alert("Vui lòng nhập mã ứng dụng để tải dữ liệu.");
+            return;
+        }
+        const savedData = localStorage.getItem(`data_${appKey}`);
+        if (savedData) {
+            customers = JSON.parse(savedData);
+            renderTable();
+            alert(`Dữ liệu đã được tải cho ứng dụng: ${appKey}`);
+        } else {
+            alert(`Không tìm thấy dữ liệu cho ứng dụng: ${appKey}`);
+        }
+    }
+
+    // Popup functions
+    function showGuide() {
+        document.getElementById('guidePopup').style.display = 'block';
+    }
+
+    function closeGuide() {
+        document.getElementById('guidePopup').style.display = 'none';
+    }
+
+    function showSortPopup() {
+        document.getElementById('sortPopup').style.display = 'block';
+    }
+
+    function closeSortPopup() {
+        document.getElementById('sortPopup').style.display = 'none';
+    }
+
+    function groupAndSortData() {
+        const table = document.querySelector('#customerTable');
+        const select = document.getElementById('sortField');
+        const columnIndex = parseInt(select.value);
+        
+        // Clone customers array to not affect original data
+        const groupedCustomers = [...customers];
+        
+        // Sort and group by selected field
+        const groups = new Map();
+        
+        groupedCustomers.forEach(customer => {
+            let key = '';
+            switch(columnIndex) {
+                case 1: key = customer.code || ''; break;
+                case 6: key = customer.area || ''; break;
+                case 8: key = customer.staff || ''; break;
+            }
+            
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key).push(customer);
+        });
+        
+        // Sort groups
+        const sortedGroups = new Map([...groups.entries()].sort());
+        
+        // Update customers array with sorted order
+        customers = [];
+        sortedGroups.forEach((groupCustomers, groupKey) => {
+            customers.push(...groupCustomers);
+        });
+        
+        renderTable();
+        closeSortPopup();
+    }
+
+    function searchCustomers() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const tbody = document.querySelector('#customerTable tbody');
+        
+        tbody.innerHTML = '';
+
+        customers
+            .filter(customer => 
+                customer.code.toLowerCase().includes(searchTerm) ||
+                customer.name.toLowerCase().includes(searchTerm) ||
+                customer.area.toLowerCase().includes(searchTerm) ||
+                customer.contact.toLowerCase().includes(searchTerm) ||
+                customer.staff.toLowerCase().includes(searchTerm) ||
+                (customer.ordered && "đặt hàng".includes(searchTerm)) || 
+                (customer.medicineOrdered && "đặt hàng thuốc".includes(searchTerm))
+            )
+            .forEach((customer, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><input type="checkbox"></td>
+                    <td>${index + 1}</td>
+                    <td>${customer.code}</td>
+                    <td>${customer.name}</td>
+                    <td>${customer.contact}</td>
+                    <td>${customer.phone}</td>
+                    <td>${customer.email}</td>
+                    <td>${customer.area}</td>
+                    <td>${customer.address}</td>
+                    <td>${customer.staff}</td>
+                    <td>${customer.ordered ? 'Có' : 'Không'}</td>
+                    <td>${customer.medicineOrdered ? 'Có' : 'Không'}</td>
+                    <td>${customer.note}</td>
+                    <td><button onclick="deleteCustomer(${index})">Xóa</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+    }
+
+    function searchByStaff() {
+    // Lấy giá trị tìm kiếm và chuyển thành chữ thường để so sánh không phân biệt hoa/thường
+    const searchTerm = document.getElementById('staffSearchInput').value.toLowerCase().trim();
+    
+    // Lấy tất cả các hàng (<tr>) trong phần thân của bảng (<tbody>)
+    const rows = document.querySelectorAll('#customerTable tbody tr');
+
+    // Duyệt qua từng hàng để quyết định ẩn hay hiện
+    rows.forEach(row => {
+        // Lấy ô (<td>) chứa tên nhân viên phụ trách (cột thứ 10, chỉ số 9)
+        const staffCell = row.cells[9]; 
+        
+        if (staffCell) {
+            // Lấy thẻ input bên trong ô đó
+            const staffInput = staffCell.querySelector('input[type="text"]');
+            
+            if (staffInput) {
+                // Lấy giá trị tên nhân viên từ thẻ input
+                const staffName = staffInput.value.toLowerCase().trim();
+
+                // Nếu tên nhân viên chứa cụm từ tìm kiếm (hoặc nếu ô tìm kiếm rỗng)
+                if (staffName.includes(searchTerm)) {
+                    // Thì hiển thị hàng này
+                    row.style.display = ''; 
+                } else {
+                    // Ngược lại, ẩn hàng này đi
+                    row.style.display = 'none'; 
+                }
+            }
+        }
+    });
+}
+
+    function hideRows() {
+        const rows = document.querySelectorAll('#customerTable tbody tr');
+        hiddenRows = [];
+
+        rows.forEach((row, index) => {
+            const checkbox = row.querySelector('input[type="checkbox"]'); 
+            if (checkbox && checkbox.checked) {
+                hiddenRows.push(index);
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function unhideRows() {
+        const rows = document.querySelectorAll('#customerTable tbody tr');
+        hiddenRows.forEach(index => {
+            rows[index].style.display = '';
+        });
+        hiddenRows = [];
+    }
+
+    function resetData() {
+        customers.forEach(customer => {
+            customer.ordered = false;
+            customer.medicineOrdered = false;
+        });
+
+        renderTable();
+        autoSaveToFirebase();
+        alert('Tất cả các lựa chọn đã được bỏ chọn!');
+    }
+
+    function openStaffSelection() {
+        const staffNamesInput = prompt("Nhập danh sách tên nhân viên phụ trách, ngăn cách nhau bằng dấu phẩy:");
+        if (staffNamesInput) {
+            const staffNames = staffNamesInput.split(',').map(name => name.trim().toLowerCase());
+            renderTable();
+            autoSelectByStaff(staffNames);
+        }
+    }
+
+    function autoSelectByStaff(staffNames) {
+        const rows = document.querySelectorAll('#customerTable tbody tr');
+        
+        rows.forEach(row => {
+            const staffCell = row.cells[9];
+            const checkbox = row.querySelector('input[type="checkbox"]');
+            
+            if (staffCell && checkbox) {
+                const staffText = staffCell.querySelector('input[type="text"]').value.trim().toLowerCase();
+                if (staffNames.includes(staffText)) {
+                    checkbox.checked = true;
+                } else {
+                    checkbox.checked = false;
+                }
+            }
+        });
+    }
+
+    function showVideoPopup() {
+        document.getElementById('videoPopup').style.display = 'block';
+        document.getElementById('popupOverlay').style.display = 'block';
+    }
+
+    function closeVideoPopup() {
+        document.getElementById('videoPopup').style.display = 'none';
+        document.getElementById('popupOverlay').style.display = 'none';
+    }
+
+    // Warning functions
+    function kiemTraTiLeDatHang() {
+        const nhanVienKhaiBao = document.getElementById('fullName').value.trim().toLowerCase();
+
+        if (!nhanVienKhaiBao) return;
+
+        const khachHangPhuTrach = customers.filter(c => c.staff.toLowerCase().trim() === nhanVienKhaiBao);
+        const tongKhachHang = khachHangPhuTrach.length;
+        const khachHangDaDatHang = khachHangPhuTrach.filter(c => c.ordered).length;
+        const tiLeDatHang = tongKhachHang > 0 ? (khachHangDaDatHang / tongKhachHang) * 100 : 0;
+
+        if (tiLeDatHang < 50) {
+            hienThongBaoCanhBao(`Tỷ lệ đặt hàng của bạn là ${tiLeDatHang.toFixed(2)}%. Hãy cải thiện ngay!`);
+        }
+    }
+
+    function hienThongBaoCanhBao(noiDung) {
+        const thongBaoPopup = document.getElementById('warningPopup');
+        
+        thongBaoPopup.querySelector('.popup-content').innerHTML = `<p>${noiDung}</p>`;
+        thongBaoPopup.style.display = 'block';
+        
+        setTimeout(() => {
+            thongBaoPopup.style.display = 'none';
+        }, 6000);
+    }
+
+    // =======================================================
+    // BỔ SUNG MỚI: CHỨC NĂNG POPUP NHẮC NHỞ
+    // =======================================================
+
+    /**
+     * Hiển thị popup nhắc nhở cho TẤT CẢ nhân viên
+     * có khách hàng chưa đặt hàng, dựa trên dữ liệu 'customers'.
+     * Không còn phụ thuộc vào ô khai báo #fullName.
+     */
+    function showReminderPopup() {
+        const reminderContent = document.getElementById('reminderContent');
+        let htmlContent = '';
+        let staffWithReminders = 0;
+
+        // 1. Lấy tất cả tên nhân viên duy nhất từ dữ liệu (biến 'customers' toàn cục)
+        const staffNames = [...new Set(customers.map(c => c.staff.trim()).filter(name => name))];
+        
+        if (staffNames.length === 0) {
+            console.log("Không có nhân viên nào được gán trong dữ liệu, không hiển thị nhắc nhở.");
+            return;
+        }
+
+        // 2. Lặp qua từng nhân viên để kiểm tra
+        staffNames.forEach(staffName => {
+            const staffNameLower = staffName.toLowerCase();
+            
+            // Lọc danh sách khách hàng cần nhắc cho nhân viên này
+            const customersToRemind = customers.filter(c => 
+                c.staff.trim().toLowerCase() === staffNameLower && // Đúng nhân viên
+                !c.ordered &&                                    // Chưa đặt non-drugs
+                !c.medicineOrdered                               // Chưa đặt thuốc
+            );
+
+            // 3. Nếu nhân viên này có khách hàng cần nhắc, thêm vào nội dung HTML
+            if (customersToRemind.length > 0) {
+                staffWithReminders++;
+                
+                // Thêm tiêu đề cho nhân viên
+                htmlContent += `<div style="margin-top: ${staffWithReminders > 1 ? '20px' : '0'};">`;
+                htmlContent += `<h4 style="color: #d9534f; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 15px; margin-bottom: 10px; font-size: 17px;">Nhân viên: ${staffName}</h4>`;
+                htmlContent += `<p style="margin-top: 0; margin-bottom: 10px; font-size: 15px;">Bạn còn <strong>${customersToRemind.length}</strong> khách hàng chưa đặt hàng:</p>`;
+                
+                // Thêm danh sách khách hàng
+                htmlContent += '<ul style="list-style-type: decimal; padding-left: 25px; margin: 0; max-height: 200px; overflow-y: auto; border: 1px solid #eee; padding-top: 10px; padding-bottom: 10px; background: #fff;">';
+                customersToRemind.forEach(c => {
+                    htmlContent += `<li style="margin-bottom: 8px; font-size: 14px;"><strong>${c.name}</strong> (Mã: ${c.code})</li>`;
+                });
+                htmlContent += '</ul>';
+                htmlContent += `</div>`;
+            }
+        });
+
+        // 4. Kiểm tra xem có ai cần nhắc không
+        if (staffWithReminders > 0) {
+            // Có, chèn HTML và hiển thị popup
+            reminderContent.innerHTML = htmlContent;
+            document.getElementById('reminderOverlay').style.display = 'block';
+            document.getElementById('reminderPopup').style.display = 'block';
+        } else {
+            // Không, log ra console
+            console.log("Tất cả nhân viên đều đã hoàn thành. Tốt!");
+        }
+    }
+
+
+    /**
+     * Đóng popup nhắc nhở và lớp phủ.
+     */
+    function closeReminderPopup() {
+        document.getElementById('reminderOverlay').style.display = 'none';
+        document.getElementById('reminderPopup').style.display = 'none';
+    }
+
+    /**
+     * // HÀM ĐÃ ĐƯỢC CHỈNH SỬA THEO CẤU TRÚC MỚI
+     * Kiểm tra thời gian hiện tại và kích hoạt popup nếu
+     * đúng khung giờ và ngày quy định.
+     */
+    function checkAndTriggerReminder() {
+        
+        // --- CẤU HÌNH LỊCH TRÌNH POPUP THEO Ý BẠN ---
+        // (Bạn có thể dễ dàng thêm/bớt ngày và giờ ở đây)
+        const popupSchedule = {
+            // 0:CN, 1:T2, 2:T3, 3:T4, 4:T5, 5:T6, 6:T7
+            days: [0, 1, 2, 3, 4, 5, 6], // Chạy tất cả các ngày
+            
+            // Các mốc thời gian
+            times: [
+                { hour: 9, minute: 0 },
+                { hour: 11, minute: 15 }, // Giờ test của bạn
+                { hour: 14, minute: 0 },
+                { hour: 15, minute: 0 }
+            ]
+        };
+        // ---------------------------------------------
+
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+        const hour = now.getHours();
+        const minute = now.getMinutes();
+        
+        // Kiểm tra xem popup đã mở chưa
+        const popupIsOpen = document.getElementById('reminderPopup').style.display === 'block';
+        
+        // 1. Kiểm tra xem hôm nay có phải ngày chạy không
+        const isScheduledDay = popupSchedule.days.includes(dayOfWeek);
+
+        if (isScheduledDay && !popupIsOpen) {
+            // 2. Nếu đúng ngày, kiểm tra xem có phải giờ chạy không
+            const isScheduledTime = popupSchedule.times.some(time => 
+                time.hour === hour && time.minute === minute
+            );
+            
+            // 3. Nếu đúng cả ngày và giờ, kích hoạt popup
+            if (isScheduledTime) {
+                console.log("Đang kích hoạt popup nhắc nhở tự động theo lịch trình...");
+                showReminderPopup();
+            }
+        }
+    }
+
+    // =======================================================
+    // KẾT THÚC BỔ SUNG MỚI
+    // =======================================================
+
+
+    // Initialize on load
+    window.onload = function() {
+        const appKey = localStorage.getItem('currentAppKey') || 'default';
+        loadFromLocalStorage(appKey);
+        
+        // Load from Firebase on startup
+        loadFromFirebase();
+        
+        // Set up periodic order rate check
+        setInterval(kiemTraTiLeDatHang, 30000);
+
+        // Chạy kiểm tra nhắc nhở mỗi phút (60000ms)
+        setInterval(checkAndTriggerReminder, 60000);
+    };
+
+    // Popup resize handlers
+    const popups = document.querySelectorAll('.popup');
+    popups.forEach(popup => {
+        const resizeHandle = popup.querySelector('.resize-handle');
+        if (resizeHandle) {
+            resizeHandle.addEventListener('mousedown', initResize, false);
+        }
+    });
+
+    function initResize(e) {
+        const popup = e.target.closest('.popup');
+        window.addEventListener('mousemove', resize, false);
+        window.addEventListener('mouseup', stopResize, false);
+
+        function resize(e) {
+            popup.style.width = (e.clientX - popup.offsetLeft) + 'px';
+            popup.style.height = (e.clientY - popup.offsetTop) + 'px';
+        }
+
+        function stopResize() {
+            window.removeEventListener('mousemove', resize, false);
+            window.removeEventListener('mouseup', stopResize, false);
+        }
+    }
+</script>
+</body>
+</html>
