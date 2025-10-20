@@ -293,10 +293,11 @@
         <div style="margin-bottom: 10px;">
             <button onclick="saveToFirebase()">Lưu lên Firebase</button>
             <button onclick="loadFromFirebase()">Tải từ Firebase</button>
+            <button onclick="deleteFromFirebase()" style="background-color: #f44336; color: white;">Xóa dữ liệu Firebase</button>
+            
             <button onclick="showSortPopup()">Sắp xếp</button>
             <button onclick="exportHTML()">Xuất file HTML quy định</button>
         </div>
-        
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="searchInput" placeholder="Tìm kiếm chung...">
             <button onclick="searchCustomers()">Tìm</button>
@@ -523,6 +524,51 @@
             alert('Có lỗi xảy ra khi tải dữ liệu từ Firebase: ' + error.message);
         }
     }
+
+    // ================== THAY ĐỔI Ở ĐÂY ==================
+    /**
+     * Chức năng mới: Xóa toàn bộ dữ liệu tại nút 'customerManagement/customers' trên Firebase.
+     */
+    function deleteFromFirebase() {
+        // 1. Yêu cầu xác nhận từ người dùng vì đây là hành động nguy hiểm
+        if (!confirm('Bạn có chắc chắn muốn XÓA TOÀN BỘ dữ liệu khách hàng trên Firebase không? Hành động này không thể hoàn tác.')) {
+            return; // Người dùng đã hủy
+        }
+
+        try {
+            // 2. Cập nhật trạng thái giao diện
+            const statusElement = document.getElementById('firebaseStatus');
+            statusElement.textContent = 'Đang xóa trên Firebase...';
+            statusElement.className = 'firebase-status firebase-syncing';
+            
+            // 3. Gọi hàm .remove() để xóa dữ liệu tại đường dẫn
+            database.ref('customerManagement/customers').remove()
+                .then(() => {
+                    // 4. Xử lý khi thành công
+                    statusElement.textContent = 'Đã xóa dữ liệu Firebase';
+                    statusElement.className = 'firebase-status firebase-connected'; // Trở lại trạng thái 'đã kết nối'
+                    console.log('Dữ liệu đã được xóa khỏi Firebase');
+                    alert('Đã xóa toàn bộ dữ liệu trên Firebase thành công! Bạn có thể upload file mới ngay bây giờ.');
+                    
+                    // Ghi chú: Chúng tôi KHÔNG xóa dữ liệu 'customers' cục bộ
+                    // để người dùng có thể upload file mới (từ Excel hoặc JSON)
+                    // hoặc lưu dữ liệu cục bộ hiện tại lên.
+                })
+                .catch((error) => {
+                    // 5. Xử lý khi thất bại
+                    statusElement.textContent = 'Lỗi kết nối Firebase';
+                    statusElement.className = 'firebase-status firebase-disconnected';
+                    console.error('Lỗi khi xóa dữ liệu Firebase:', error);
+                    alert('Có lỗi xảy ra khi xóa dữ liệu Firebase: ' + error.message);
+                });
+        } catch (error) {
+            // 6. Xử lý lỗi đồng bộ (nếu có)
+            console.error('Lỗi khi xóa dữ liệu Firebase:', error);
+            alert('Có lỗi xảy ra khi xóa dữ liệu Firebase: ' + error.message);
+        }
+    }
+    // ================== KẾT THÚC THAY ĐỔI ==================
+
 
     // Auto-save to Firebase when data changes
     function autoSaveToFirebase() {
