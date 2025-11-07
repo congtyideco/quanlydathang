@@ -246,6 +246,7 @@
         </form>
         
         <div style="margin-top: 10px;">
+            <button onclick="assignStaff()" style="background-color: #4CAF50; color: white;">Giao Phụ Trách</button>
             <button class="guide-button" onclick="showGuide()">Hướng dẫn</button>
             <button onclick="showVideoPopup()">Hướng dẫn video</button>
         </div>
@@ -579,6 +580,74 @@
             }, 1000);
         }
     }
+    
+    // ================== BỔ SUNG MỚI THEO YÊU CẦU ==================
+    /**
+     * Gán nhân viên phụ trách (từ ô #fullName) cho các khách hàng đã được tick chọn.
+     * Chức năng này hoạt động ổn định ngay cả khi bảng đã được lọc hoặc sắp xếp.
+     */
+    function assignStaff() {
+        // 1. Lấy tên nhân viên từ ô khai báo "Họ tên"
+        const staffName = document.getElementById('fullName').value.trim();
+        
+        // 2. Kiểm tra xem tên có rỗng không
+        if (!staffName) {
+            alert('Vui lòng nhập tên nhân viên vào ô "Họ tên" trước khi giao phụ trách.');
+            document.getElementById('fullName').focus(); // Focus vào ô tên để người dùng nhập
+            return;
+        }
+
+        // 3. Lấy tất cả các hàng trong tbody
+        const rows = document.querySelectorAll('#customerTable tbody tr');
+        let customerCodesToUpdate = []; // Mảng lưu MÃ KH của các hàng được chọn
+        let assignedCount = 0;
+
+        // 4. Duyệt qua các hàng để thu thập MÃ khách hàng được chọn
+        rows.forEach((row) => {
+            // Lấy checkbox ở ô đầu tiên (cột "Chọn")
+            const checkbox = row.querySelector('td:first-child input[type="checkbox"]');
+            
+            // 5. Nếu checkbox được chọn
+            if (checkbox && checkbox.checked) {
+                // Lấy MÃ KH từ ô thứ 3 (index 2) - cột "MÃ"
+                const codeInput = row.cells[2].querySelector('input[type="text"]');
+                if (codeInput && codeInput.value) {
+                    // Thêm mã KH vào danh sách cần cập nhật
+                    customerCodesToUpdate.push(codeInput.value);
+                }
+                
+                // Bỏ chọn checkbox sau khi đã lấy thông tin
+                checkbox.checked = false;
+            }
+        });
+
+        // Nếu không có khách hàng nào được chọn, thông báo và dừng
+        if (customerCodesToUpdate.length === 0) {
+            alert('Bạn chưa chọn khách hàng nào để giao (hãy tick vào ô vuông ở đầu hàng).');
+            return;
+        }
+
+        // 6. Cập nhật mảng 'customers' (dữ liệu nguồn)
+        customers.forEach(customer => {
+            // Nếu mã KH của customer này nằm trong danh sách cần cập nhật
+            if (customerCodesToUpdate.includes(customer.code)) {
+                customer.staff = staffName; // Gán tên nhân viên mới
+                assignedCount++;
+            }
+        });
+
+        // 7. Nếu có sự thay đổi, render lại bảng, lưu và thông báo
+        if (assignedCount > 0) {
+            renderTable(); // Vẽ lại toàn bộ bảng để hiển thị tên nhân viên mới
+            autoSaveToFirebase(); // Tự động lưu dữ liệu đã thay đổi lên Firebase
+            alert(`Đã giao ${assignedCount} khách hàng cho nhân viên "${staffName}".`);
+        } else {
+            // Trường hợp hiếm: đã chọn hàng nhưng mã KH không khớp
+            alert('Không tìm thấy khách hàng tương ứng trong dữ liệu. Hãy thử đồng bộ lại.');
+        }
+    }
+    // ================== KẾT THÚC BỔ SUNG MỚI ==================
+
 
     // Customer management functions
     function addNewCustomer() {
