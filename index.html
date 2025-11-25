@@ -909,7 +909,7 @@
 
                 newData.forEach(row => {
                     const customerName = row["Khách hàng"]?.trim();
-                    const isMedicineOrder = row["Thuốc?"]?.toString().trim().toUpperCase() === "TRUE";
+                    const invoiceDate = row["Ngày hóa đơn"]; // Lấy giá trị cột T
 
                     if (!customerName) {
                         console.warn(`Bỏ qua dòng thiếu dữ liệu: ${JSON.stringify(row)}`);
@@ -922,18 +922,25 @@
                     );
 
                     if (customer) {
-                        if (isMedicineOrder) {
-                            // Tick "Đặt hàng thuốc" and untick "Đặt hàng non-drugs"
-                            customer.medicineOrdered = true;
-                            customer.ordered = false;
-                            console.log(`Tick Đặt hàng thuốc cho khách hàng: ${customerName}`);
+                        // CHỈ XỬ LÝ NẾU CÓ NGÀY HÓA ĐƠN
+                        if (invoiceDate && invoiceDate.toString().trim() !== '') {
+                            const isMedicineOrder = row["Thuốc?"]?.toString().trim().toUpperCase() === "TRUE";
+
+                            if (isMedicineOrder) {
+                                // Nếu Thuốc? = TRUE => Tick Đặt hàng thuốc, bỏ Đặt hàng non-drugs
+                                customer.medicineOrdered = true;
+                                customer.ordered = false;
+                                console.log(`Tick Đặt hàng thuốc cho khách hàng: ${customerName}`);
+                            } else {
+                                // Nếu Thuốc? = FALSE => Tick Đặt hàng non-drugs, bỏ Đặt hàng thuốc
+                                customer.ordered = true;
+                                customer.medicineOrdered = false;
+                                console.log(`Tick Đặt hàng non-drugs cho khách hàng: ${customerName}`);
+                            }
+                            updatesCount++;
                         } else {
-                            // Tick "Đặt hàng non-drugs" and untick "Đặt hàng thuốc"
-                            customer.ordered = true;
-                            customer.medicineOrdered = false;
-                            console.log(`Tick Đặt hàng non-drugs cho khách hàng: ${customerName}`);
+                            console.log(`Bỏ qua khách hàng: ${customerName} vì chưa có ngày hóa đơn.`);
                         }
-                        updatesCount++;
                     } else {
                         console.warn(`Không tìm thấy khách hàng: ${customerName}`);
                     }
