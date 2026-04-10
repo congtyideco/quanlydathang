@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Ứng dụng Quản lý Khách hàng - Đặt hàng Thuốc</title>
+    <title>Ứng dụng Quản lý Khách hàng - Đặt hàng Thuốc (Bản Vá Lỗi Cuối Cùng)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -14,139 +14,49 @@
         h2 { text-align: center; color: #333; font-size: 1rem; margin-top: 0; margin-bottom: 20px; font-weight: normal; }
         .app-container { max-width: 1400px; margin: 0 auto; }
         
-        /* Bảng với thanh cuộn ngang */
-        .table-wrapper {
-            overflow-x: auto;
-            overflow-y: visible;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            background-color: white;
-            position: relative;
-        }
+        .table-wrapper { overflow-x: auto; overflow-y: visible; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); background-color: white; position: relative; }
+        table { width: max-content; min-width: 100%; border-collapse: collapse; background-color: white; font-size: 13px; table-layout: fixed; }
+        th, td { border: 1px solid #e0e0e0; padding: 6px 8px; text-align: left; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; position: relative; }
         
-        table { 
-            width: max-content;
-            min-width: 100%;
-            border-collapse: collapse;
-            background-color: white;
-            font-size: 13px;
-            table-layout: fixed;
-        }
+        th:nth-child(1), td:nth-child(1) { min-width: 50px; width: 50px; }  
+        th:nth-child(2), td:nth-child(2) { min-width: 50px; width: 50px; }  
+        th:nth-child(3), td:nth-child(3) { min-width: 80px; width: 80px; }  
+        th:nth-child(4), td:nth-child(4) { min-width: 180px; width: 180px; } 
+        th:nth-child(5), td:nth-child(5) { min-width: 130px; width: 130px; } 
+        th:nth-child(6), td:nth-child(6) { min-width: 110px; width: 110px; } 
+        th:nth-child(7), td:nth-child(7) { min-width: 160px; width: 160px; } 
+        th:nth-child(8), td:nth-child(8) { min-width: 100px; width: 100px; } 
+        th:nth-child(9), td:nth-child(9) { min-width: 200px; width: 200px; } 
+        th:nth-child(10), td:nth-child(10) { min-width: 130px; width: 130px; } 
+        th:nth-child(11), td:nth-child(11) { min-width: 100px; width: 100px; } 
+        th:nth-child(12), td:nth-child(12) { min-width: 130px; width: 130px; } 
+        th:nth-child(13), td:nth-child(13) { min-width: 110px; width: 110px; } 
+        th:nth-child(14), td:nth-child(14) { min-width: 180px; width: 180px; } 
+        th:nth-child(15), td:nth-child(15) { min-width: 70px; width: 70px; }  
         
-        th, td { 
-            border: 1px solid #e0e0e0; 
-            padding: 6px 8px; 
-            text-align: left; 
-            vertical-align: middle;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            position: relative;
-        }
+        .resize-handle { position: absolute; top: 0; right: 0; width: 5px; height: 100%; cursor: col-resize; background-color: transparent; z-index: 10; }
+        .resize-handle:hover, .resize-handle.active { background-color: #007bff; }
         
-        /* Độ rộng mặc định cho các cột */
-        th:nth-child(1), td:nth-child(1) { min-width: 50px; width: 50px; }  /* Chọn */
-        th:nth-child(2), td:nth-child(2) { min-width: 50px; width: 50px; }  /* STT */
-        th:nth-child(3), td:nth-child(3) { min-width: 80px; width: 80px; }  /* MÃ */
-        th:nth-child(4), td:nth-child(4) { min-width: 180px; width: 180px; } /* Khách hàng */
-        th:nth-child(5), td:nth-child(5) { min-width: 130px; width: 130px; } /* Người liên hệ */
-        th:nth-child(6), td:nth-child(6) { min-width: 110px; width: 110px; } /* Điện thoại */
-        th:nth-child(7), td:nth-child(7) { min-width: 160px; width: 160px; } /* Email */
-        th:nth-child(8), td:nth-child(8) { min-width: 100px; width: 100px; } /* Khu vực */
-        th:nth-child(9), td:nth-child(9) { min-width: 200px; width: 200px; } /* Địa chỉ */
-        th:nth-child(10), td:nth-child(10) { min-width: 130px; width: 130px; } /* Nhân viên */
-        th:nth-child(11), td:nth-child(11) { min-width: 100px; width: 100px; } /* Thuốc danh mục */
-        th:nth-child(12), td:nth-child(12) { min-width: 130px; width: 130px; } /* Đặt non-drugs */
-        th:nth-child(13), td:nth-child(13) { min-width: 110px; width: 110px; } /* Đặt thuốc */
-        th:nth-child(14), td:nth-child(14) { min-width: 180px; width: 180px; } /* Ghi chú */
-        th:nth-child(15), td:nth-child(15) { min-width: 70px; width: 70px; }  /* Hành động */
+        th { background-color: #f8f9fa; font-weight: 600; color: #495057; position: relative; user-select: none; }
+        th:nth-child(12) { background-color: #ff9800; color: white; }
+        th:nth-child(13) { background-color: #4caf50; color: white; }
         
-        /* Thanh kéo co giãn */
-        .resize-handle {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 5px;
-            height: 100%;
-            cursor: col-resize;
-            background-color: transparent;
-            z-index: 10;
-        }
-        
-        .resize-handle:hover, .resize-handle.active {
-            background-color: #007bff;
-        }
-        
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-            position: relative;
-            user-select: none;
-        }
-        
-        /* Màu nền cho các header đặc biệt */
-        th:nth-child(12) {
-            background-color: #ff9800;
-            color: white;
-        }
-        th:nth-child(13) {
-            background-color: #4caf50;
-            color: white;
-        }
-        
-        input[type="text"], input[type="date"], textarea { 
-            width: 100%; 
-            padding: 4px 6px; 
-            border: 1px solid #ced4da; 
-            border-radius: 4px; 
-            font-size: 12px; 
-            box-sizing: border-box;
-        }
-        
-        textarea {
-            resize: vertical;
-            min-height: 50px;
-        }
-        
-        button { 
-            background-color: #007bff; 
-            color: white; 
-            padding: 4px 10px; 
-            margin: 2px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-size: 12px; 
-            font-weight: 500; 
-            transition: 0.1s; 
-            white-space: nowrap; 
-        }
+        input[type="text"], input[type="date"], textarea { width: 100%; padding: 4px 6px; border: 1px solid #ced4da; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+        textarea { resize: vertical; min-height: 50px; }
+        button { background-color: #007bff; color: white; padding: 4px 10px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 500; transition: 0.1s; white-space: nowrap; }
         button:hover { background-color: #0056b3; transform: translateY(-1px); }
         .control-panel { background: white; padding: 12px 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
         .flex-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
         .flex-row:last-child { margin-bottom: 0; }
         
-        /* Màu nền cho các trạng thái đặt hàng */
         .ordered-only { background-color: #fff3e0; }
         .medicine-ordered-only { background-color: #e8f5e9; }
         .both-ordered { background-color: #f3e5f5; }
         .default-row { background-color: white; }
         
-        /* Màu nền cho ô checkbox */
-        .checkbox-cell {
-            text-align: center;
-            background-color: inherit;
-        }
-        .checkbox-cell input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        .checkbox-cell input[type="checkbox"]:hover {
-            transform: scale(1.2);
-        }
+        .checkbox-cell { text-align: center; background-color: inherit; }
+        .checkbox-cell input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; transition: all 0.2s ease; }
+        .checkbox-cell input[type="checkbox"]:hover { transform: scale(1.2); }
         
         .firebase-status { padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: normal; margin-left: 10px; }
         .firebase-connected { background-color: #4caf50; color: white; }
@@ -156,27 +66,15 @@
         .popup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; }
         .close-button { cursor: pointer; font-size: 24px; font-weight: bold; color: #aaa; }
         .close-button:hover { color: #000; }
-        .medicine-category-value {
-            color: #dc3545;
-            font-weight: bold;
-            background-color: #fff5f5;
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 12px;
-            font-size: 11px;
-        }
-        @media (max-width: 768px) { 
-            .flex-row { flex-direction: column; align-items: stretch; }
-            button, input[type="file"] { width: 100%; }
-            th, td { font-size: 11px; padding: 4px; }
-            .resize-handle { display: none; }
-        }
+        .medicine-category-value { color: #dc3545; font-weight: bold; background-color: #fff5f5; display: inline-block; padding: 2px 6px; border-radius: 12px; font-size: 11px; }
+        
         .btn-danger { background-color: #dc3545; }
         .btn-danger:hover { background-color: #c82333; }
         .btn-success { background-color: #28a745; }
         .btn-warning { background-color: #ffc107; color: #212529; }
         .btn-secondary { background-color: #6c757d; }
         .btn-info { background-color: #17a2b8; }
+        @media (max-width: 768px) { .flex-row { flex-direction: column; align-items: stretch; } button, input[type="file"] { width: 100%; } .resize-handle { display: none; } }
     </style>
 </head>
 <body>
@@ -260,8 +158,7 @@
     <div id="stats" class="stats-panel"></div>
 </div>
 
-    <!-- Popups -->
-    <div id="guidePopup" class="popup"><div class="popup-header"><h3>Hướng dẫn sử dụng</h3><span class="close-button" onclick="closeGuide()">&times;</span></div><div><p><strong>Bước 1:</strong> Upload file Excel danh sách khách hàng.<br><strong>Bước 2:</strong> Gán nhân viên phụ trách bằng tick chọn → nhập tên → "Giao Phụ Trách".<br><strong>Bước 3:</strong> Upload excel "chọn nhóm" (cột N chứa TRUE) để ghi nhận danh mục "Thuốc".<br><strong>Bước 4:</strong> Xuất excel báo cáo "KHÁCH HÀNG - KHÔNG ĐẶT" chỉ lấy khách chưa đặt hàng.</p><p><strong>Mẹo:</strong> Kéo thả chuột vào mép phải của header cột để điều chỉnh độ rộng cột.</p></div></div>
+    <div id="guidePopup" class="popup"><div class="popup-header"><h3>Hướng dẫn sử dụng</h3><span class="close-button" onclick="closeGuide()">&times;</span></div><div><p><strong>Bước 1:</strong> Upload file Excel danh sách khách hàng.</p></div></div>
     <div id="videoPopup" class="popup" style="width:800px; height:500px;"><iframe id="videoFrame" src="https://www.youtube.com/embed/iK-iDa32Bh8" style="width:100%; height:100%; border:none;"></iframe><button onclick="closeVideoPopup()" style="position:absolute; top:10px; right:10px; background:red; border-radius:50%;">&times;</button></div>
     <div id="sortPopup" class="popup"><div class="popup-header"><h3>Sắp xếp theo</h3><span class="close-button" onclick="closeSortPopup()">&times;</span></div><select id="sortField"><option value="code">Mã</option><option value="area">Khu vực</option><option value="staff">Nhân viên phụ trách</option></select><button onclick="groupAndSortData()">Sắp xếp</button></div>
     <div id="warningPopup" class="popup"><div class="popup-header"><h3>Cảnh báo!</h3><span class="close-button" onclick="closeWarning()">&times;</span></div><div class="popup-content"></div></div>
@@ -269,7 +166,6 @@
     <div id="popupOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;"></div>
 
 <script>
-    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyDKNLLhisemYQJeCW8QCOwfbvVsvUur-60",
         authDomain: "quetbarcode-2361a.firebaseapp.com",
@@ -285,6 +181,19 @@
     let currentCustomerCode = 1;
     let hiddenRows = [];
 
+    // HÀM CHUẨN HÓA CƠ BẢN
+    function removeAccents(str) {
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+    }
+
+    // HÀM CHUẨN HÓA SIÊU VIỆT: Lọc sạch mọi ký tự không phải chữ/số để so sánh tên khách hàng
+    function robustMatchStr(str) {
+        if (!str) return "";
+        return removeAccents(String(str))
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, ''); 
+    }
+
     database.ref('.info/connected').on('value', (snap) => {
         const el = document.getElementById('firebaseStatus');
         if (snap.val()) { el.textContent = 'Đã kết nối Firebase'; el.className = 'firebase-status firebase-connected'; }
@@ -292,7 +201,7 @@
     });
 
     function saveToFirebase() { database.ref('customerManagement/customers').set(customers).then(()=>console.log('saved')).catch(e=>alert(e)); }
-    function loadFromFirebase() { database.ref('customerManagement/customers').once('value').then(snap=>{ if(snap.val()){ customers=snap.val(); renderTable(); alert("Đã tải dữ liệu từ Firebase"); } else alert("Không có dữ liệu trên Firebase"); }); }
+    function loadFromFirebase() { database.ref('customerManagement/customers').once('value').then(snap=>{ if(snap.val()){ customers=snap.val(); renderTable(); alert("Đã tải dữ liệu từ Firebase"); } }); }
     function deleteFromFirebase() { if(confirm("XÓA TOÀN BỘ DỮ LIỆU TRÊN FIREBASE?")) database.ref('customerManagement/customers').remove().then(()=>alert("Đã xóa dữ liệu trên Firebase")); }
     function autoSaveToFirebase() { if(customers.length) setTimeout(()=>saveToFirebase(), 800); }
 
@@ -315,8 +224,7 @@
         tbody.innerHTML = '';
         customers.forEach((c, idx) => {
             const tr = document.createElement('tr');
-            const rowClass = getRowClass(c.ordered, c.medicineOrdered);
-            tr.className = rowClass;
+            tr.className = getRowClass(c.ordered, c.medicineOrdered);
             tr.innerHTML = `
                 <td class="checkbox-cell"><input type="checkbox"></td>
                 <td>${idx+1}</td>
@@ -349,13 +257,9 @@
         }
         if (field === 'ordered' || field === 'medicineOrdered') {
             const rows = document.querySelectorAll('#customerTable tbody tr');
-            if (rows[idx]) {
-                rows[idx].className = getRowClass(customers[idx].ordered, customers[idx].medicineOrdered);
-            }
-            updateStats();
-        } else if (field !== 'medicineCategory') {
-            updateStats();
-        }
+            if (rows[idx]) { rows[idx].className = getRowClass(customers[idx].ordered, customers[idx].medicineOrdered); }
+        } 
+        updateStats();
         autoSaveToFirebase(); 
     }
     
@@ -379,8 +283,7 @@
         }));
         currentCustomerCode = maxCode + 1;
         customers.push({ code:`KH${currentCustomerCode}`, name:'', contact:'', phone:'', email:'', area:'', address:'', staff:'', ordered:false, medicineOrdered:false, note:'', medicineCategory:'' }); 
-        renderTable(); 
-        autoSaveToFirebase(); 
+        renderTable(); autoSaveToFirebase(); 
     }
 
     function assignStaff() {
@@ -397,10 +300,8 @@
             }
         });
         if(updated){ renderTable(); autoSaveToFirebase(); alert(`Đã giao ${updated} khách hàng cho ${staffName}`); }
-        else alert("Chưa chọn khách hàng nào");
     }
 
-    // Upload danh sách khách hàng
     function uploadExcel() {
         const file = document.getElementById('fileUpload').files[0];
         if(!file) return alert("Chọn file Excel");
@@ -409,30 +310,53 @@
             const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
             const sheet = wb.Sheets[wb.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:"" });
-            if(rows.length<2) return;
-            const headers = rows[0];
-            let idx = { code:-1, name:-1, contact:-1, phone:-1, email:-1, area:-1, address:-1, staff:-1 };
-            headers.forEach((h,i)=>{ let v=String(h||"").trim();
-                if(v.includes("MÃ") || v.includes("CODE")) idx.code=i; 
-                else if(v.includes("Khách hàng") || v.includes("TÊN")) idx.name=i; 
-                else if(v.includes("Người liên hệ") || v.includes("LIÊN HỆ")) idx.contact=i;
-                else if(v.includes("Điện thoại") || v.includes("PHONE")) idx.phone=i; 
-                else if(v.includes("Email")) idx.email=i; 
-                else if(v.includes("Khu vực") || v.includes("KV")) idx.area=i;
-                else if(v.includes("Địa chỉ") || v.includes("ADDRESS")) idx.address=i; 
-                else if(v.includes("Nhân viên") || v.includes("STAFF")) idx.staff=i;
-            });
-            const newList=[];
-            for(let i=1;i<rows.length;i++){
-                const r=rows[i];
-                if(!r[idx.name] && !r[idx.code]) continue;
-                newList.push({ code: r[idx.code]||`KH${i}`, name: r[idx.name]||"", contact: r[idx.contact]||"", phone: r[idx.phone]||"", email: r[idx.email]||"", area: r[idx.area]||"", address: r[idx.address]||"", staff: r[idx.staff]||"", ordered:false, medicineOrdered:false, note:"", medicineCategory:"" });
+            if(rows.length < 1) return;
+            
+            let headerIdx = 0; let headers = rows[0];
+            for (let i = 0; i < Math.min(10, rows.length); i++) {
+                const rowStr = removeAccents(rows[i].join("").toLowerCase());
+                if (rowStr.includes("khach hang") || rowStr.includes("ten kh") || rowStr.includes("nguoi lien he")) {
+                    headerIdx = i; headers = rows[i]; break;
+                }
             }
-            if(newList.length){ customers=newList; renderTable(); autoSaveToFirebase(); alert(`Đã import ${newList.length} khách hàng`);}
+            
+            let idx = { code:-1, name:-1, contact:-1, phone:-1, email:-1, area:-1, address:-1, staff:-1 };
+            headers.forEach((h,i)=>{ 
+                if(!h) return;
+                let v_no_accent = removeAccents(String(h).normalize('NFC').trim().toLowerCase().replace(/\n/g, ' ').replace(/\s+/g, ' '));
+                if(v_no_accent.includes("email") || v_no_accent.includes("mail")) { if(idx.email===-1) idx.email=i; }
+                else if(v_no_accent.includes("dien thoai") || v_no_accent.includes("phone") || v_no_accent.includes("sdt")) { if(idx.phone===-1) idx.phone=i; }
+                else if(v_no_accent.includes("nguoi lien he") || v_no_accent.includes("lien he") || v_no_accent.includes("contact") || v_no_accent.includes("dai dien")) { if(idx.contact===-1) idx.contact=i; }
+                else if(v_no_accent.includes("khu vuc") || v_no_accent.includes("vung") || v_no_accent.includes("tuyen") || v_no_accent.includes("dia ban") || v_no_accent.includes("area")) { if(idx.area===-1) idx.area=i; }
+                else if(v_no_accent.includes("dia chi") || v_no_accent.includes("address")) { if(idx.address===-1) idx.address=i; }
+                else if(v_no_accent.includes("nhan vien") || v_no_accent.includes("staff") || v_no_accent.includes("phu trach")) { if(idx.staff===-1) idx.staff=i; }
+                else if(v_no_accent === "ten" || v_no_accent.includes("khach hang") || v_no_accent.includes("ten kh")) { if(idx.name===-1) idx.name=i; }
+                else if(v_no_accent === "ma" || v_no_accent.includes("ma kh") || v_no_accent.includes("code") || v_no_accent === "ma so") { if(idx.code===-1) idx.code=i; }
+            });
+            
+            const newList=[];
+            for(let i = headerIdx + 1; i < rows.length; i++){
+                const r = rows[i];
+                if(!r[idx.name] && !r[idx.code] && !r[idx.phone]) continue;
+                newList.push({ 
+                    code: idx.code !== -1 ? String(r[idx.code] || `KH${i}`) : `KH${i}`, 
+                    name: idx.name !== -1 ? String(r[idx.name] || "").normalize('NFC') : "", 
+                    contact: idx.contact !== -1 ? String(r[idx.contact] || "").normalize('NFC') : "", 
+                    phone: idx.phone !== -1 ? String(r[idx.phone] || "") : "", 
+                    email: idx.email !== -1 ? String(r[idx.email] || "") : "", 
+                    area: idx.area !== -1 ? String(r[idx.area] || "").normalize('NFC') : "", 
+                    address: idx.address !== -1 ? String(r[idx.address] || "").normalize('NFC') : "", 
+                    staff: idx.staff !== -1 ? String(r[idx.staff] || "").normalize('NFC') : "", 
+                    ordered:false, medicineOrdered:false, note:"", medicineCategory:"" 
+                });
+            }
+            if(newList.length){ customers = newList; renderTable(); autoSaveToFirebase(); alert(`Đã import ${newList.length} khách hàng.`); } 
+            else { alert("Không tìm thấy dữ liệu."); }
         };
         reader.readAsArrayBuffer(file);
     }
 
+    // ==================== FIX LỖI "TỰ ĐỘNG BỊ XÓA THUỐC" KHI UPLOAD CHỌN NHÓM ====================
     function uploadGroupExcel() {
         const file = document.getElementById('groupExcelUpload').files[0];
         if(!file) return alert("Chọn file excel 'chọn nhóm'");
@@ -441,35 +365,60 @@
             const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
             const sheet = wb.Sheets[wb.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:"" });
-            if(rows.length<2) return;
-            const headers = rows[0];
-            let nameCol=-1, flagCol=-1;
-            headers.forEach((h,i)=>{
-                let v = String(h||"").trim();
-                if(v.includes("Khách hàng") || v.includes("TÊN")) nameCol=i;
-                if(v.toUpperCase() === "THUỐC?" || i===13) flagCol=i;
-            });
-            if(nameCol===-1){ alert("Không tìm thấy cột Khách hàng"); return; }
-            let updated=0;
-            for(let i=1;i<rows.length;i++){
-                const row=rows[i];
-                const custName = row[nameCol] ? String(row[nameCol]).trim() : "";
-                if(!custName) continue;
-                let flagVal = (flagCol!==-1 && row[flagCol]) ? String(row[flagCol]).trim().toUpperCase() : "";
-                const isMedicine = (flagVal === "TRUE" || flagVal === "1");
-                const matched = customers.find(c => c.name?.trim().toLowerCase() === custName.toLowerCase());
-                if(matched){
-                    if(isMedicine) matched.medicineCategory = "Thuốc";
-                    else if(matched.medicineCategory === "Thuốc") matched.medicineCategory = "";
-                    updated++;
+            if(rows.length < 1) return alert("File không có dữ liệu");
+            
+            let headerIdx = 0; let headers = rows[0];
+            for (let i = 0; i < Math.min(10, rows.length); i++) {
+                const rowStr = removeAccents(rows[i].join("").toLowerCase());
+                if (rowStr.includes("khach hang") || rowStr.includes("ten kh")) {
+                    headerIdx = i; headers = rows[i]; break;
                 }
             }
-            if(updated){ renderTable(); autoSaveToFirebase(); alert(`Đã cập nhật danh mục "Thuốc" cho ${updated} khách hàng`); }
-            else alert("Không có khách hàng nào được cập nhật");
+            
+            let nameCol = -1, flagCol = 13; 
+            headers.forEach((h,i)=>{
+                if(!h) return;
+                let v = removeAccents(String(h).normalize('NFC').trim().toLowerCase().replace(/\n/g, ' ').replace(/\s+/g, ' '));
+                if(v === "ten" || v.includes("khach hang") || v.includes("ten kh")) nameCol=i;
+                if(v.includes("thuoc")) flagCol=i; 
+            });
+            
+            if(nameCol===-1) return alert("Không tìm thấy cột Khách hàng");
+            
+            let updated=0;
+            for(let i = headerIdx + 1; i < rows.length; i++){
+                const row = rows[i];
+                const custName = row[nameCol] ? String(row[nameCol]) : "";
+                if(!custName.trim()) continue;
+                
+                let val = "";
+                if(row[flagCol] !== undefined && row[flagCol] !== null) val = String(row[flagCol]);
+                else if (row[13] !== undefined && row[13] !== null) val = String(row[13]);
+                
+                // Chuẩn hóa triệt để giá trị thành chữ in hoa và bỏ khoảng trắng để so sánh
+                const cleanVal = removeAccents(val).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                const isMedicine = (cleanVal === "TRUE" || cleanVal === "1" || cleanVal === "CO" || cleanVal === "DUNG");
+                
+                const targetName = robustMatchStr(custName);
+                
+                // Dùng forEach để cập nhật TẤT CẢ các khách có cùng tên (không bỏ sót)
+                customers.forEach(c => {
+                    if(c.name && robustMatchStr(c.name) === targetName) {
+                        // CHỈ CỘNG DỒN, KHÔNG XÓA KHI GẶP FALSE NỮA
+                        if(isMedicine) {
+                            c.medicineCategory = "Thuốc";
+                            updated++;
+                        }
+                    }
+                });
+            }
+            if(updated) { renderTable(); autoSaveToFirebase(); alert(`Thành công! Đã ghi nhận / cập nhật đánh dấu "Thuốc" từ file.`); } 
+            else alert("Không có thay đổi nào được cập nhật.");
         };
         reader.readAsArrayBuffer(file);
     }
 
+    // ==================== FIX LỖI "TỰ ĐỘNG BỊ XÓA THUỐC" KHI UPLOAD ĐƠN HÀNG TRONG KỲ ====================
     function updateOrderData() {
         const file = document.getElementById('orderUpdateFile').files[0];
         if(!file) return alert("Chọn file đơn hàng");
@@ -478,44 +427,55 @@
             const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
             const sheet = wb.Sheets[wb.SheetNames[0]];
             const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:"" });
-            if(rows.length < 2) return;
-            const headers = rows[0];
-            let nameCol = -1, thuocCol = -1;
+            if(rows.length < 1) return;
+            
+            let headerIdx = 0; let headers = rows[0];
+            for (let i = 0; i < Math.min(10, rows.length); i++) {
+                const rowStr = removeAccents(rows[i].join("").toLowerCase());
+                if (rowStr.includes("khach hang") || rowStr.includes("ten kh")) {
+                    headerIdx = i; headers = rows[i]; break;
+                }
+            }
+
+            let nameCol = -1, thuocCol = 13;
             headers.forEach((h,idx)=>{
-                const cell = String(h||"").trim();
-                if(cell.includes("Khách hàng") || cell.includes("TÊN")) nameCol = idx;
-                if(cell.toUpperCase() === "THUỐC?" || idx === 13) thuocCol = idx;
+                const cell = removeAccents(String(h||"").normalize('NFC').trim().toLowerCase().replace(/\n/g, ' ').replace(/\s+/g, ' '));
+                if(cell === "ten" || cell.includes("khach hang") || cell.includes("ten kh")) nameCol = idx;
+                if(cell.includes("thuoc")) thuocCol = idx;
             });
-            if(nameCol === -1) { alert("Không tìm thấy cột 'Khách hàng' trong file đơn hàng"); return; }
+            
+            if(nameCol === -1) return alert("Không tìm thấy cột Khách hàng");
+            
             let updatedCount = 0;
-            for(let i=1; i<rows.length; i++){
+            for(let i = headerIdx + 1; i < rows.length; i++){
                 const row = rows[i];
-                const custName = row[nameCol] ? String(row[nameCol]).trim() : "";
-                if(!custName) continue;
-                let isThuoc = false;
-                if(thuocCol !== -1){
-                    let val = row[thuocCol] ? String(row[thuocCol]).trim().toUpperCase() : "";
-                    isThuoc = (val === "TRUE" || val === "1");
-                }
-                const matched = customers.find(c => c.name?.trim().toLowerCase() === custName.toLowerCase());
-                if(matched){
-                    if(isThuoc) {
-                        matched.medicineCategory = "Thuốc";
-                        matched.medicineOrdered = true;
-                    } else {
-                        if(matched.medicineCategory === "Thuốc") matched.medicineCategory = "";
-                        matched.ordered = true;
+                const custName = row[nameCol] ? String(row[nameCol]) : "";
+                if(!custName.trim()) continue;
+                
+                let val = "";
+                if(row[thuocCol] !== undefined && row[thuocCol] !== null) val = String(row[thuocCol]);
+                else if(row[13] !== undefined && row[13] !== null) val = String(row[13]);
+                
+                const cleanVal = removeAccents(val).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                const isThuoc = (cleanVal === "TRUE" || cleanVal === "1" || cleanVal === "CO" || cleanVal === "DUNG");
+                
+                const targetName = robustMatchStr(custName);
+                
+                customers.forEach(c => {
+                    if(c.name && robustMatchStr(c.name) === targetName) {
+                        if(isThuoc) {
+                            c.medicineCategory = "Thuốc"; // Đánh dấu vĩnh viễn là Thuốc
+                            c.medicineOrdered = true;     // Tick vào ô Đặt hàng Thuốc
+                        } else {
+                            c.ordered = true;             // Chỉ đánh dấu là có đặt hàng thường
+                            // Đoạn code xóa c.medicineCategory = "" ĐÃ BỊ LOẠI BỎ!
+                        }
+                        updatedCount++;
                     }
-                    updatedCount++;
-                }
+                });
             }
-            if(updatedCount > 0){
-                renderTable();
-                autoSaveToFirebase();
-                alert(`Đã cập nhật đơn hàng cho ${updatedCount} khách hàng.`);
-            } else {
-                alert("Không có khách hàng nào được cập nhật (tên không khớp).");
-            }
+            if(updatedCount > 0){ renderTable(); autoSaveToFirebase(); alert(`Đã ghi nhận ${updatedCount} lượt đơn hàng vào hệ thống!`); }
+            else { alert("Không khớp được tên khách hàng nào."); }
         };
         reader.readAsArrayBuffer(file);
     }
@@ -525,14 +485,11 @@
         const filtered = customers.filter(c => !c.ordered && !c.medicineOrdered);
         if(filtered.length===0){ alert("Không có khách hàng chưa đặt hàng"); return; }
         const data = filtered.map(c => ({ "KHÁCH HÀNG": c.name || "", "NGƯỜI LIÊN HỆ": c.contact || "", "ĐIỆN THOẠI": c.phone || "", "ĐỊA CHỈ": c.address || "", "KHU VỰC": c.area || "", "NGƯỜI PHỤ TRÁCH": c.staff || "", "THUỐC": c.medicineCategory || "" }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "KhachHangChuaDat");
-        XLSX.writeFile(wb, `KhachHang_chua_dat_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
+        const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "KhachHangChuaDat"); XLSX.writeFile(wb, `KhachHang_chua_dat_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
     }
-    function updateData() { alert("Chức năng cập nhật dữ liệu: Vui lòng sử dụng Upload Excel để thay thế danh sách"); }
+    function updateData() { alert("Sử dụng Upload Excel DSKH để nạp danh sách mới."); }
     function saveToLocalStorage(key){ if(!key){ alert("Nhập mã ứng dụng"); return; } localStorage.setItem(`data_${key}`, JSON.stringify(customers)); alert("Đã lưu vào LocalStorage"); }
-    function loadFromLocalStorage(key){ if(!key){ alert("Nhập mã ứng dụng"); return; } const data = localStorage.getItem(`data_${key}`); if(data){ customers=JSON.parse(data); renderTable(); alert("Đã tải từ LocalStorage"); } else alert("Không tìm thấy dữ liệu"); }
+    function loadFromLocalStorage(key){ if(!key){ alert("Nhập mã ứng dụng"); return; } const data = localStorage.getItem(`data_${key}`); if(data){ customers=JSON.parse(data); renderTable(); alert("Đã tải từ LocalStorage"); } }
     function showSortPopup(){ document.getElementById('sortPopup').style.display='block'; }
     function closeSortPopup(){ document.getElementById('sortPopup').style.display='none'; }
     function groupAndSortData(){ const field = document.getElementById('sortField').value; customers.sort((a,b)=>(a[field]||'').localeCompare(b[field]||'')); renderTable(); closeSortPopup(); }
@@ -553,25 +510,16 @@
     function showReminderPopup(){ let html=''; const staffSet = [...new Set(customers.map(c=>c.staff?.trim()).filter(n=>n))]; staffSet.forEach(s=>{ const remind = customers.filter(c=>c.staff?.trim().toLowerCase()===s.toLowerCase() && !c.ordered && !c.medicineOrdered); if(remind.length){ html+=`<h4>👤 ${s}</h4><ul>${remind.map(r=>`<li>🏪 ${r.name} (${r.code}) - ${r.phone || 'Chưa có SĐT'}</li>`).join('')}</ul>`; } }); if(html){ document.getElementById('reminderContent').innerHTML=html; document.getElementById('reminderPopup').style.display='block'; document.getElementById('popupOverlay').style.display='block'; } }
     function checkAndTriggerReminder(){ const now=new Date(); if([1,2,3,4,5,6].includes(now.getDay()) && [9,11,14,16].includes(now.getHours()) && now.getMinutes()===0){ showReminderPopup(); } }
     
-    // Chức năng kéo co giãn cột
     function initResizeColumns() {
         const table = document.getElementById('customerTable');
         const handles = document.querySelectorAll('.resize-handle');
-        let activeHandle = null;
-        let startX = 0;
-        let startWidth = 0;
-        let activeTh = null;
+        let activeHandle = null; let startX = 0; let startWidth = 0; let activeTh = null;
         
         handles.forEach(handle => {
             handle.addEventListener('mousedown', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                activeHandle = this;
-                activeTh = this.parentElement;
-                startX = e.pageX;
-                startWidth = activeTh.offsetWidth;
-                document.body.style.userSelect = 'none';
-                document.body.style.cursor = 'col-resize';
+                e.preventDefault(); e.stopPropagation(); activeHandle = this; activeTh = this.parentElement;
+                startX = e.pageX; startWidth = activeTh.offsetWidth;
+                document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize';
                 activeHandle.classList.add('active');
             });
         });
@@ -580,36 +528,20 @@
             if (!activeHandle) return;
             const diff = e.pageX - startX;
             const newWidth = Math.max(40, startWidth + diff);
-            activeTh.style.width = newWidth + 'px';
-            activeTh.style.minWidth = newWidth + 'px';
-            
-            // Cập nhật tất cả các ô trong cùng cột
+            activeTh.style.width = newWidth + 'px'; activeTh.style.minWidth = newWidth + 'px';
             const colIndex = activeTh.cellIndex;
             const rows = table.querySelectorAll('tr');
-            rows.forEach(row => {
-                if (row.cells[colIndex]) {
-                    row.cells[colIndex].style.width = newWidth + 'px';
-                    row.cells[colIndex].style.minWidth = newWidth + 'px';
-                }
-            });
+            rows.forEach(row => { if (row.cells[colIndex]) { row.cells[colIndex].style.width = newWidth + 'px'; row.cells[colIndex].style.minWidth = newWidth + 'px'; } });
         });
         
         document.addEventListener('mouseup', function() {
-            if (activeHandle) {
-                activeHandle.classList.remove('active');
-                activeHandle = null;
-                document.body.style.userSelect = '';
-                document.body.style.cursor = '';
-            }
+            if (activeHandle) { activeHandle.classList.remove('active'); activeHandle = null; document.body.style.userSelect = ''; document.body.style.cursor = ''; }
         });
     }
     
     setInterval(kiemTraTiLeDatHang, 30000);
     setInterval(checkAndTriggerReminder, 60000);
-    window.onload = function(){ 
-        loadFromFirebase();
-        setTimeout(initResizeColumns, 100);
-    };
+    window.onload = function(){ loadFromFirebase(); setTimeout(initResizeColumns, 100); };
 </script>
 </body>
 </html>
