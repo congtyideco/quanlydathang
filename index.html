@@ -75,6 +75,75 @@
         .btn-secondary { background-color: #6c757d; }
         .btn-info { background-color: #17a2b8; }
         @media (max-width: 768px) { .flex-row { flex-direction: column; align-items: stretch; } button, input[type="file"] { width: 100%; } .resize-handle { display: none; } }
+
+        /* ==== STYLE CHO Ô TÌM KIẾM CÓ GỢI Ý TÊN KHÁCH HÀNG ==== */
+        .search-container { position: relative; }
+        .suggestions-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 320px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ced4da;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+            z-index: 200;
+            margin-top: 1px;
+        }
+        .suggestions-header {
+            padding: 6px 10px;
+            background: #f8f9fa;
+            font-size: 11px;
+            color: #6c757d;
+            border-bottom: 1px solid #e9ecef;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+        }
+        .suggestion-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #212529;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggestion-item:hover, .suggestion-item.highlighted {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+        }
+        .suggestion-item .sg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .suggestion-item .sg-meta {
+            font-size: 11px;
+            color: #6c757d;
+            white-space: nowrap;
+            background: #f1f3f5;
+            padding: 1px 6px;
+            border-radius: 10px;
+        }
+        .suggestion-item.highlighted .sg-meta { background: #bbdefb; color: #0d47a1; }
+        .suggestion-item mark {
+            background-color: #fff59d;
+            color: #d32f2f;
+            font-weight: 700;
+            padding: 0;
+            border-radius: 2px;
+        }
+        .suggestion-empty {
+            padding: 12px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -116,7 +185,14 @@
             <button onclick="showSortPopup()">🔽 Sắp xếp</button>
         </div>
         <div class="flex-row">
-            <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm chung..." style="flex:2">
+            <div class="search-container" style="flex:2; min-width:200px;">
+                <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm chung (gõ để xem gợi ý tên KH)..." style="width:100%"
+                       autocomplete="off"
+                       oninput="showNameSuggestions()"
+                       onfocus="showNameSuggestions()"
+                       onkeydown="handleSearchKeydown(event)">
+                <div id="searchSuggestions" class="suggestions-dropdown"></div>
+            </div>
             <button onclick="searchCustomers()">Tìm</button>
             <input type="text" id="staffSearchInput" placeholder="👤 Tên nhân viên phụ trách..." style="flex:1">
             <button onclick="searchByStaff()">Tìm theo NV</button>
@@ -493,7 +569,228 @@
     function showSortPopup(){ document.getElementById('sortPopup').style.display='block'; }
     function closeSortPopup(){ document.getElementById('sortPopup').style.display='none'; }
     function groupAndSortData(){ const field = document.getElementById('sortField').value; customers.sort((a,b)=>(a[field]||'').localeCompare(b[field]||'')); renderTable(); closeSortPopup(); }
-    function searchCustomers(){ const term = document.getElementById('searchInput').value.toLowerCase(); const rows = document.querySelectorAll('#customerTable tbody tr'); rows.forEach(row=>{ row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; }); }
+
+    // ==================== TÌM KIẾM CHUNG NÂNG CẤP - GỢI Ý TÊN KHÁCH HÀNG ====================
+    let currentSuggestionIdx = -1;
+
+    // Lấy danh sách tên KH duy nhất kèm số lần xuất hiện (để hiển thị nhóm KH trùng tên)
+    function getUniqueCustomerNames() {
+        const map = new Map(); // key = robustMatchStr(name); value = { display, count, original }
+        customers.forEach(c => {
+            if (!c.name) return;
+            const display = String(c.name).trim();
+            if (!display) return;
+            const key = robustMatchStr(display);
+            if (!key) return;
+            if (map.has(key)) {
+                const item = map.get(key);
+                item.count++;
+            } else {
+                map.set(key, { display: display, count: 1, key: key });
+            }
+        });
+        return Array.from(map.values()).sort((a, b) => a.display.localeCompare(b.display, 'vi'));
+    }
+
+    // Hiển thị danh sách gợi ý tên khách hàng khi gõ
+    function showNameSuggestions() {
+        currentSuggestionIdx = -1;
+        const input = document.getElementById('searchInput');
+        const dropdown = document.getElementById('searchSuggestions');
+        if (!input || !dropdown) return;
+
+        const term = input.value.trim();
+        if (!term) {
+            dropdown.style.display = 'none';
+            dropdown.innerHTML = '';
+            return;
+        }
+
+        const normalizedTerm = removeAccents(term.toLowerCase());
+        const allNames = getUniqueCustomerNames();
+
+        // Lọc tên có chứa từ khóa (bỏ dấu, không phân biệt hoa thường)
+        const matched = allNames.filter(item => {
+            return removeAccents(item.display.toLowerCase()).includes(normalizedTerm);
+        });
+
+        // Sắp xếp: tên bắt đầu bằng từ khóa lên đầu, sau đó đến tên chứa từ khóa
+        matched.sort((a, b) => {
+            const aLower = removeAccents(a.display.toLowerCase());
+            const bLower = removeAccents(b.display.toLowerCase());
+            const aStarts = aLower.startsWith(normalizedTerm);
+            const bStarts = bLower.startsWith(normalizedTerm);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return a.display.localeCompare(b.display, 'vi');
+        });
+
+        const limited = matched.slice(0, 20); // Tối đa 20 gợi ý
+
+        if (limited.length === 0) {
+            dropdown.innerHTML = `<div class="suggestion-empty">Không tìm thấy tên khách hàng phù hợp</div>`;
+            dropdown.style.display = 'block';
+            return;
+        }
+
+        let html = `<div class="suggestions-header">💡 ${matched.length} gợi ý tên khách hàng (Enter để tìm, ↑↓ để chọn)</div>`;
+        html += limited.map(item => {
+            const display = item.display;
+            const lowerNoAccent = removeAccents(display.toLowerCase());
+            const idx = lowerNoAccent.indexOf(normalizedTerm);
+            let nameHtml = escapeHtml(display);
+            if (idx >= 0 && normalizedTerm.length > 0) {
+                // Vì removeAccents giữ nguyên độ dài chuỗi, ánh xạ vị trí trực tiếp
+                const before = escapeHtml(display.substring(0, idx));
+                const match = escapeHtml(display.substring(idx, idx + normalizedTerm.length));
+                const after = escapeHtml(display.substring(idx + normalizedTerm.length));
+                nameHtml = `${before}<mark>${match}</mark>${after}`;
+            }
+            const meta = item.count > 1 ? `${item.count} KH cùng tên` : '1 KH';
+            // Lưu tên gốc trong data attribute để click chọn
+            const safeName = display.replace(/"/g, '&quot;');
+            return `<div class="suggestion-item" data-name="${safeName}" onmousedown="selectSuggestion(this.getAttribute('data-name'))">
+                        <span class="sg-name">${nameHtml}</span>
+                        <span class="sg-meta">${meta}</span>
+                    </div>`;
+        }).join('');
+
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+    }
+
+    // Khi click vào 1 gợi ý: điền vào ô tìm kiếm và tự động tìm
+    function selectSuggestion(name) {
+        const input = document.getElementById('searchInput');
+        const dropdown = document.getElementById('searchSuggestions');
+        if (input) input.value = name;
+        if (dropdown) { dropdown.style.display = 'none'; dropdown.innerHTML = ''; }
+        searchCustomers();
+    }
+
+    // Xử lý phím trong ô tìm kiếm (mũi tên, Enter, Esc)
+    function handleSearchKeydown(e) {
+        const dropdown = document.getElementById('searchSuggestions');
+        if (!dropdown) return;
+        const items = dropdown.querySelectorAll('.suggestion-item');
+
+        if (e.key === 'ArrowDown') {
+            if (items.length === 0) return;
+            e.preventDefault();
+            currentSuggestionIdx = Math.min(currentSuggestionIdx + 1, items.length - 1);
+            updateSuggestionHighlight(items);
+        } else if (e.key === 'ArrowUp') {
+            if (items.length === 0) return;
+            e.preventDefault();
+            currentSuggestionIdx = Math.max(currentSuggestionIdx - 1, -1);
+            updateSuggestionHighlight(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentSuggestionIdx >= 0 && items[currentSuggestionIdx]) {
+                selectSuggestion(items[currentSuggestionIdx].getAttribute('data-name'));
+            } else {
+                dropdown.style.display = 'none';
+                searchCustomers();
+            }
+        } else if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            currentSuggestionIdx = -1;
+        }
+    }
+
+    function updateSuggestionHighlight(items) {
+        items.forEach((item, i) => {
+            if (i === currentSuggestionIdx) {
+                item.classList.add('highlighted');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('highlighted');
+            }
+        });
+    }
+
+    // Đóng dropdown khi click ra ngoài
+    document.addEventListener('click', function(e) {
+        const container = document.querySelector('.search-container');
+        const dropdown = document.getElementById('searchSuggestions');
+        if (container && dropdown && !container.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    // Hàm tìm kiếm chính: liệt kê chính xác KH có tên khớp + tìm trên các trường khác
+    function searchCustomers(){
+        const term = document.getElementById('searchInput').value.trim();
+        const dropdown = document.getElementById('searchSuggestions');
+        if (dropdown) dropdown.style.display = 'none';
+
+        const rows = document.querySelectorAll('#customerTable tbody tr');
+
+        // Nếu rỗng -> hiện tất cả
+        if (!term) {
+            rows.forEach(row => row.style.display = '');
+            return;
+        }
+
+        const normalizedTerm = removeAccents(term.toLowerCase());
+        const robustTerm = robustMatchStr(term);
+        let matchCount = 0;
+
+        rows.forEach((row, idx) => {
+            const customer = customers[idx];
+            if (!customer) {
+                // Fallback: dùng nội dung text của hàng (giống logic gốc)
+                const ok = removeAccents(row.innerText.toLowerCase()).includes(normalizedTerm);
+                row.style.display = ok ? '' : 'none';
+                if (ok) matchCount++;
+                return;
+            }
+
+            // 1) So khớp chính xác tên KH (ưu tiên cao - cho phép gõ có/không dấu)
+            const custName = customer.name || '';
+            const custNameNorm = removeAccents(custName.toLowerCase());
+            const custNameRobust = robustMatchStr(custName);
+
+            const exactNameMatch =
+                custNameRobust === robustTerm ||
+                custNameNorm.includes(normalizedTerm) ||
+                (robustTerm && custNameRobust.includes(robustTerm));
+
+            // 2) So khớp các trường còn lại (tìm kiếm chung)
+            const otherFields = [
+                customer.code, customer.contact, customer.phone, customer.email,
+                customer.area, customer.address, customer.staff, customer.note,
+                customer.medicineCategory
+            ];
+            const otherMatch = otherFields.some(f => {
+                if (!f) return false;
+                return removeAccents(String(f).toLowerCase()).includes(normalizedTerm);
+            });
+
+            if (exactNameMatch || otherMatch) {
+                row.style.display = '';
+                matchCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Phản hồi vào ô thống kê (không làm mất chức năng updateStats khi có nhân viên)
+        const staffName = document.getElementById('fullName').value.trim();
+        const statsEl = document.getElementById('stats');
+        if (statsEl) {
+            const note = `<div style="margin-top:6px; color:#1976d2;">🔎 Đã tìm thấy <strong>${matchCount}</strong> khách hàng khớp với "<strong>${escapeHtml(term)}</strong>"</div>`;
+            if (!staffName) {
+                statsEl.innerHTML = `<span style="color:red">👤 Vui lòng nhập họ tên nhân viên vào ô bên trên để xem thống kê</span>${note}`;
+            } else {
+                // Giữ nguyên phần thống kê NV và thêm dòng kết quả tìm kiếm
+                updateStats();
+                statsEl.innerHTML = statsEl.innerHTML + note;
+            }
+        }
+    }
+    // ==================== HẾT PHẦN TÌM KIẾM NÂNG CẤP ====================
+
     function searchByStaff(){ const term = document.getElementById('staffSearchInput').value.toLowerCase(); const rows = document.querySelectorAll('#customerTable tbody tr'); rows.forEach(row=>{ const staffVal = row.cells[9]?.querySelector('input')?.value.toLowerCase()||''; row.style.display = (!term || staffVal.includes(term)) ? '' : 'none'; }); }
     function hideRows(){ const rows = document.querySelectorAll('#customerTable tbody tr'); hiddenRows=[]; rows.forEach((row,i)=>{ if(row.querySelector('td:first-child input')?.checked){ row.style.display='none'; hiddenRows.push(i); } }); }
     function unhideRows(){ const rows = document.querySelectorAll('#customerTable tbody tr'); hiddenRows.forEach(i=>{ if(rows[i]) rows[i].style.display=''; }); hiddenRows=[]; }
