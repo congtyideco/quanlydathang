@@ -396,11 +396,17 @@
                 }
             }
             
-            let idx = { code:-1, name:-1, contact:-1, phone:-1, email:-1, area:-1, address:-1, staff:-1 };
+            let idx = { code:-1, name:-1, contact:-1, phone:-1, email:-1, area:-1, address:-1, staff:-1, medCat:-1, ordered:-1, medOrdered:-1, note:-1 };
             headers.forEach((h,i)=>{ 
                 if(!h) return;
                 let v_no_accent = removeAccents(String(h).normalize('NFC').trim().toLowerCase().replace(/\n/g, ' ').replace(/\s+/g, ' '));
-                if(v_no_accent.includes("email") || v_no_accent.includes("mail")) { if(idx.email===-1) idx.email=i; }
+                // === Các cột nâng cao (đặt TRƯỚC để khớp chính xác) ===
+                if (v_no_accent.includes("thuoc") && (v_no_accent.includes("danh muc") || v_no_accent.includes("(danh muc)"))) { if(idx.medCat===-1) idx.medCat=i; }
+                else if (v_no_accent.includes("dat hang") && (v_no_accent.includes("non") || v_no_accent.includes("non-drug") || v_no_accent.includes("non drug"))) { if(idx.ordered===-1) idx.ordered=i; }
+                else if (v_no_accent.includes("dat hang") && v_no_accent.includes("thuoc")) { if(idx.medOrdered===-1) idx.medOrdered=i; }
+                else if (v_no_accent.includes("ghi chu") || v_no_accent.includes("bao cao")) { if(idx.note===-1) idx.note=i; }
+                // === Các cột cơ bản (giữ nguyên logic gốc) ===
+                else if(v_no_accent.includes("email") || v_no_accent.includes("mail")) { if(idx.email===-1) idx.email=i; }
                 else if(v_no_accent.includes("dien thoai") || v_no_accent.includes("phone") || v_no_accent.includes("sdt")) { if(idx.phone===-1) idx.phone=i; }
                 else if(v_no_accent.includes("nguoi lien he") || v_no_accent.includes("lien he") || v_no_accent.includes("contact") || v_no_accent.includes("dai dien")) { if(idx.contact===-1) idx.contact=i; }
                 else if(v_no_accent.includes("khu vuc") || v_no_accent.includes("vung") || v_no_accent.includes("tuyen") || v_no_accent.includes("dia ban") || v_no_accent.includes("area")) { if(idx.area===-1) idx.area=i; }
@@ -409,6 +415,23 @@
                 else if(v_no_accent === "ten" || v_no_accent.includes("khach hang") || v_no_accent.includes("ten kh")) { if(idx.name===-1) idx.name=i; }
                 else if(v_no_accent === "ma" || v_no_accent.includes("ma kh") || v_no_accent.includes("code") || v_no_accent === "ma so") { if(idx.code===-1) idx.code=i; }
             });
+            
+            // Hàm phụ: nhận diện ô có giá trị "đúng" (TRUE/1/CO/X/Thuốc...) để parse cột boolean
+            const isTruthyCell = (val) => {
+                if (val === undefined || val === null) return false;
+                if (typeof val === 'boolean') return val;
+                const clean = removeAccents(String(val)).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                return (clean === "TRUE" || clean === "1" || clean === "CO" || clean === "DUNG" || clean === "X" || clean === "THUOC");
+            };
+            // Hàm phụ: parse ô "Thuốc (danh mục)" -> trả về "Thuốc" hoặc ""
+            const parseMedCatCell = (val) => {
+                if (val === undefined || val === null) return "";
+                const str = String(val).trim();
+                if (!str) return "";
+                const clean = removeAccents(str).toUpperCase().replace(/[^A-Z0-9]/g, '');
+                if (clean === "TRUE" || clean === "1" || clean === "CO" || clean === "DUNG" || clean === "THUOC" || clean === "X") return "Thuốc";
+                return str.normalize('NFC');
+            };
             
             const newList=[];
             for(let i = headerIdx + 1; i < rows.length; i++){
@@ -423,7 +446,10 @@
                     area: idx.area !== -1 ? String(r[idx.area] || "").normalize('NFC') : "", 
                     address: idx.address !== -1 ? String(r[idx.address] || "").normalize('NFC') : "", 
                     staff: idx.staff !== -1 ? String(r[idx.staff] || "").normalize('NFC') : "", 
-                    ordered:false, medicineOrdered:false, note:"", medicineCategory:"" 
+                    ordered: idx.ordered !== -1 ? isTruthyCell(r[idx.ordered]) : false, 
+                    medicineOrdered: idx.medOrdered !== -1 ? isTruthyCell(r[idx.medOrdered]) : false, 
+                    note: idx.note !== -1 ? String(r[idx.note] || "").normalize('NFC') : "", 
+                    medicineCategory: idx.medCat !== -1 ? parseMedCatCell(r[idx.medCat]) : "" 
                 });
             }
             if(newList.length){ customers = newList; renderTable(); autoSaveToFirebase(); alert(`Đã import ${newList.length} khách hàng.`); } 
@@ -556,7 +582,77 @@
         reader.readAsArrayBuffer(file);
     }
 
-    function exportExcel() { const ws = XLSX.utils.json_to_sheet(customers.map(c=>({...c}))); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Customers"); XLSX.writeFile(wb, `customers_${new Date().toISOString().slice(0,10)}.xlsx`); }
+    // ==================== XUẤT EXCEL ĐẦY ĐỦ - ĐÚNG ĐỊNH DẠNG NHƯ BẢNG TRÊN MÀN HÌNH ====================
+    // Header trùng với cột trên giao diện -> upload lại bằng "Upload Excel DSKH" sẽ đồng bộ 100%
+    function exportExcel() {
+        if (!customers || customers.length === 0) {
+            alert("Không có dữ liệu để xuất. Vui lòng tải dữ liệu lên trước.");
+            return;
+        }
+
+        // Mapping dữ liệu theo đúng thứ tự cột giao diện (bỏ checkbox và nút Hành động)
+        const data = customers.map((c, idx) => ({
+            "STT": idx + 1,
+            "Mã": c.code || "",
+            "Khách hàng": c.name || "",
+            "Người liên hệ": c.contact || "",
+            "Điện thoại": c.phone || "",
+            "Email": c.email || "",
+            "Khu vực": c.area || "",
+            "Địa chỉ": c.address || "",
+            "Nhân viên phụ trách": c.staff || "",
+            "Thuốc (danh mục)": c.medicineCategory || "",
+            "Đặt hàng non-drugs": c.ordered ? "TRUE" : "",
+            "Đặt hàng thuốc": c.medicineOrdered ? "TRUE" : "",
+            "Báo cáo - ghi chú": c.note || ""
+        }));
+
+        // Tạo worksheet với header đã định trước (giữ đúng thứ tự cột)
+        const headerOrder = [
+            "STT","Mã","Khách hàng","Người liên hệ","Điện thoại","Email",
+            "Khu vực","Địa chỉ","Nhân viên phụ trách","Thuốc (danh mục)",
+            "Đặt hàng non-drugs","Đặt hàng thuốc","Báo cáo - ghi chú"
+        ];
+        const ws = XLSX.utils.json_to_sheet(data, { header: headerOrder });
+
+        // Cài đặt độ rộng cột tương ứng giao diện cho dễ nhìn khi mở Excel
+        ws['!cols'] = [
+            { wch: 6  }, // STT
+            { wch: 12 }, // Mã
+            { wch: 32 }, // Khách hàng
+            { wch: 22 }, // Người liên hệ
+            { wch: 14 }, // Điện thoại
+            { wch: 26 }, // Email
+            { wch: 16 }, // Khu vực
+            { wch: 32 }, // Địa chỉ
+            { wch: 22 }, // Nhân viên phụ trách
+            { wch: 18 }, // Thuốc (danh mục)
+            { wch: 18 }, // Đặt hàng non-drugs
+            { wch: 16 }, // Đặt hàng thuốc
+            { wch: 32 }  // Báo cáo - ghi chú
+        ];
+
+        // Cố định hàng tiêu đề khi mở trong Excel (freeze pane dòng 1)
+        ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+        if (!ws['!sheetView']) ws['!sheetView'] = [{ state: 'frozen', ySplit: 1 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "DSKH");
+
+        const dateStr = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const fileName = `DSKH_DayDu_${dateStr}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        const cntOrdered = customers.filter(c => c.ordered).length;
+        const cntMed = customers.filter(c => c.medicineOrdered).length;
+        const cntMedCat = customers.filter(c => c.medicineCategory && c.medicineCategory.trim() !== "").length;
+        alert(`✅ Đã xuất ${customers.length} khách hàng ra file:\n${fileName}\n\n` +
+              `• Đã đặt non-drugs: ${cntOrdered}\n` +
+              `• Đã đặt thuốc: ${cntMed}\n` +
+              `• Có danh mục Thuốc: ${cntMedCat}\n\n` +
+              `Bạn có thể upload lại file này bằng nút "📂 Upload Excel DSKH" để đồng bộ định dạng.`);
+    }
+    // ==================== HẾT PHẦN XUẤT EXCEL ĐẦY ĐỦ ====================
     function exportExcelReport() {
         const filtered = customers.filter(c => !c.ordered && !c.medicineOrdered);
         if(filtered.length===0){ alert("Không có khách hàng chưa đặt hàng"); return; }
