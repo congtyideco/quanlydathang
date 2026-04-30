@@ -144,6 +144,125 @@
             font-size: 12px;
             font-style: italic;
         }
+
+        /* ==================== MENU BAR GỌN GÀNG - DROPDOWN QUẢN TRỊ ==================== */
+        .menu-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 5px 8px;
+            margin-bottom: 8px;
+        }
+        .menu-group { position: relative; }
+        .menu-trigger {
+            background: transparent;
+            color: #2c3e50;
+            border: 1px solid transparent;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 13px;
+            margin: 0;
+        }
+        .menu-trigger:hover {
+            background: #e3f2fd;
+            color: #0d47a1;
+            transform: none;
+        }
+        .menu-trigger.active {
+            background: #2196f3;
+            color: white;
+        }
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+            padding: 8px;
+            z-index: 150;
+            min-width: 290px;
+            margin-top: 3px;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .menu-dropdown.show { display: flex; }
+        .menu-dropdown button {
+            width: 100%;
+            text-align: left;
+            margin: 0;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+        .menu-section-title {
+            font-size: 10.5px;
+            color: #6c757d;
+            text-transform: uppercase;
+            padding: 6px 4px 3px 4px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 3px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        .menu-section-title:first-child { padding-top: 2px; }
+        .file-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 6px;
+            border: 1px dashed #cfd8dc;
+            border-radius: 5px;
+            background: #fafbfc;
+        }
+        .file-row small {
+            font-size: 11px;
+            color: #455a64;
+            font-weight: 600;
+        }
+        .file-row input[type=file] {
+            font-size: 11px;
+            width: 100%;
+            padding: 2px;
+        }
+        .menu-dropdown input[type=text] {
+            padding: 6px 8px;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        /* Nút ẩn/hiện toàn bộ menu để bảng to ra */
+        .toggle-all-btn {
+            margin-left: auto;
+            background: #455a64;
+            color: white;
+            font-weight: 600;
+        }
+        .toggle-all-btn:hover { background: #263238; }
+
+        /* Khi panel được thu gọn -> ẩn nội dung, chỉ giữ nút "Hiện menu" */
+        .control-panel.collapsed .control-content { display: none; }
+        .control-panel.collapsed { padding: 4px 8px; margin-bottom: 8px; }
+
+        /* Quick action bar (luôn hiển thị khi mở) */
+        .quick-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            margin-top: 6px;
+        }
+        .quick-bar:first-child { margin-top: 0; }
+
+        @media (max-width: 768px) {
+            .menu-dropdown { min-width: 240px; left: 0; right: 0; }
+            .toggle-all-btn { margin-left: 0; width: 100%; margin-top: 4px; }
+        }
+        /* ==================== HẾT MENU BAR ==================== */
     </style>
 </head>
 <body>
@@ -151,59 +270,103 @@
     <h1>QUẢN LÝ KHÁCH HÀNG TRONG KỲ <span id="firebaseStatus" class="firebase-status firebase-disconnected">Đang kết nối...</span></h1>
     <h2>Mục tiêu tỉ lệ KH đặt hàng > 80% tổng khách hàng quản lý/tháng</h2>
     
-    <div class="control-panel">
-        <div class="flex-row">
-            <input type="text" id="fullName" placeholder="Họ tên nhân viên (xem thống kê)" style="flex:2">
-            <input type="text" id="department" placeholder="Bộ phận" style="flex:1">
-            <input type="date" id="date" style="flex:1">
-            <button onclick="assignStaff()" style="background-color: #28a745;">✅ Giao NV Phụ Trách</button>
-            <button class="btn-secondary" onclick="showGuide()">📘 Hướng dẫn</button>
-            <button class="btn-secondary" onclick="showVideoPopup()">🎥 Video hướng dẫn</button>
-        </div>
-    </div>
+    <div class="control-panel" id="controlPanel">
+        <div class="menu-bar">
+            <div class="menu-group">
+                <button class="menu-trigger" onclick="toggleAdminMenu(event, 'menuData')">📁 Dữ liệu Excel ▾</button>
+                <div class="menu-dropdown" id="menuData">
+                    <div class="menu-section-title">Đồng bộ giao diện</div>
+                    <button onclick="syncData()">🔄 Đồng bộ giao diện</button>
 
-    <div class="control-panel">
-        <div class="flex-row">
-            <button onclick="addNewCustomer()">➕ Thêm mới KH</button>
-            <input type="file" id="fileUpload" accept=".xlsx, .xls" style="width:auto">
-            <button onclick="uploadExcel()">📂 Upload Excel DSKH</button>
-            <button onclick="syncData()">🔄 Đồng bộ</button>
-            <input type="file" id="updateFileUpload" accept=".xlsx, .xls" style="width:auto">
-            <button onclick="updateData()">📝 Cập nhật DSKH excel</button>
-            <button onclick="exportExcel()">📎 Xuất Excel (đầy đủ)</button>
-            <button onclick="exportExcelReport()">📊 Xuất Excel (KHÁCH HÀNG - KHÔNG ĐẶT)</button>
-        </div>
-        <div class="flex-row">
-            <input type="file" id="groupExcelUpload" accept=".xlsx, .xls">
-            <button onclick="uploadGroupExcel()" style="background-color: #9b59b6;">🏷️ Upload excel "chọn nhóm" (Cột N TRUE → Thuốc)</button>
-            <button onclick="saveToLocalStorage(document.getElementById('appKeyInput').value)">💾 Lưu localStorage</button>
-            <button onclick="loadFromLocalStorage(document.getElementById('appKeyInput').value)">📂 Tải localStorage</button>
-            <input type="text" id="appKeyInput" placeholder="Mã ứng dụng" style="width:100px">
-            <button onclick="saveToFirebase()">☁️ Lưu lên Firebase</button>
-            <button onclick="loadFromFirebase()">☁️ Tải từ Firebase</button>
-            <button onclick="deleteFromFirebase()" class="btn-danger">🗑️ Xóa dữ liệu Firebase</button>
-            <button onclick="showSortPopup()">🔽 Sắp xếp</button>
-        </div>
-        <div class="flex-row">
-            <div class="search-container" style="flex:2; min-width:200px;">
-                <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm chung (gõ để xem gợi ý tên KH)..." style="width:100%"
-                       autocomplete="off"
-                       oninput="showNameSuggestions()"
-                       onfocus="showNameSuggestions()"
-                       onkeydown="handleSearchKeydown(event)">
-                <div id="searchSuggestions" class="suggestions-dropdown"></div>
+                    <div class="menu-section-title">Upload Excel</div>
+                    <div class="file-row">
+                        <small>📂 Upload danh sách khách hàng</small>
+                        <input type="file" id="fileUpload" accept=".xlsx, .xls">
+                        <button onclick="uploadExcel()">📂 Upload Excel DSKH</button>
+                    </div>
+                    <div class="file-row">
+                        <small>📝 Cập nhật danh sách KH</small>
+                        <input type="file" id="updateFileUpload" accept=".xlsx, .xls">
+                        <button onclick="updateData()">📝 Cập nhật DSKH excel</button>
+                    </div>
+                    <div class="file-row">
+                        <small>🏷️ Excel "chọn nhóm" (Cột N TRUE → Thuốc)</small>
+                        <input type="file" id="groupExcelUpload" accept=".xlsx, .xls">
+                        <button onclick="uploadGroupExcel()" style="background-color: #9b59b6;">🏷️ Upload "chọn nhóm"</button>
+                    </div>
+                    <div class="file-row">
+                        <small>📦 File đơn hàng trong kỳ</small>
+                        <input type="file" id="orderUpdateFile" accept=".xlsx, .xls">
+                        <button onclick="updateOrderData()" class="btn-info">📦 Up đơn hàng trong kỳ</button>
+                    </div>
+
+                    <div class="menu-section-title">Xuất Excel</div>
+                    <button onclick="exportExcel()">📎 Xuất Excel (đầy đủ)</button>
+                    <button onclick="exportExcelReport()">📊 Xuất Excel (KH KHÔNG ĐẶT)</button>
+                </div>
             </div>
-            <button onclick="searchCustomers()">Tìm</button>
-            <input type="text" id="staffSearchInput" placeholder="👤 Tên nhân viên phụ trách..." style="flex:1">
-            <button onclick="searchByStaff()">Tìm theo NV</button>
-            <button onclick="hideRows()">👁️ Ẩn hàng chọn</button>
-            <button onclick="unhideRows()">👁️‍🗨️ Không ẩn</button>
-            <button onclick="openStaffSelection()">🎯 Chọn nhân viên để ẩn</button>
-            <button onclick="resetData()" class="btn-warning">🔄 Reset đặt hàng</button>
+
+            <div class="menu-group">
+                <button class="menu-trigger" onclick="toggleAdminMenu(event, 'menuStorage')">☁️ Lưu trữ ▾</button>
+                <div class="menu-dropdown" id="menuStorage">
+                    <div class="menu-section-title">LocalStorage (theo mã ứng dụng)</div>
+                    <input type="text" id="appKeyInput" placeholder="Mã ứng dụng">
+                    <button onclick="saveToLocalStorage(document.getElementById('appKeyInput').value)">💾 Lưu localStorage</button>
+                    <button onclick="loadFromLocalStorage(document.getElementById('appKeyInput').value)">📂 Tải localStorage</button>
+
+                    <div class="menu-section-title">Firebase (đám mây)</div>
+                    <button onclick="saveToFirebase()">☁️ Lưu lên Firebase</button>
+                    <button onclick="loadFromFirebase()">☁️ Tải từ Firebase</button>
+                    <button onclick="deleteFromFirebase()" class="btn-danger">🗑️ Xóa dữ liệu Firebase</button>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <button class="menu-trigger" onclick="toggleAdminMenu(event, 'menuTools')">🔧 Công cụ ▾</button>
+                <div class="menu-dropdown" id="menuTools">
+                    <div class="menu-section-title">Sắp xếp & Lọc</div>
+                    <button onclick="showSortPopup()">🔽 Sắp xếp dữ liệu</button>
+                    <button onclick="hideRows()">👁️ Ẩn các hàng đã chọn</button>
+                    <button onclick="unhideRows()">👁️‍🗨️ Hiện lại các hàng ẩn</button>
+                    <button onclick="openStaffSelection()">🎯 Chọn nhân viên để ẩn</button>
+
+                    <div class="menu-section-title">Reset</div>
+                    <button onclick="resetData()" class="btn-warning">🔄 Reset đặt hàng</button>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <button class="menu-trigger" onclick="toggleAdminMenu(event, 'menuHelp')">📘 Trợ giúp ▾</button>
+                <div class="menu-dropdown" id="menuHelp">
+                    <button class="btn-secondary" onclick="showGuide()">📘 Hướng dẫn sử dụng</button>
+                    <button class="btn-secondary" onclick="showVideoPopup()">🎥 Video hướng dẫn</button>
+                </div>
+            </div>
+
+            <button class="toggle-all-btn" onclick="toggleControlPanel()" id="toggleControlBtn" title="Ẩn/hiện menu để mở rộng bảng dữ liệu">⚙️ Thu gọn menu</button>
         </div>
-        <div class="flex-row">
-            <input type="file" id="orderUpdateFile" accept=".xlsx, .xls">
-            <button onclick="updateOrderData()" class="btn-info">📦 Up file đơn hàng trong kỳ</button>
+
+        <div class="control-content" id="controlContent">
+            <div class="quick-bar">
+                <input type="text" id="fullName" placeholder="👤 Họ tên nhân viên (xem thống kê)" style="flex:2; min-width:180px">
+                <input type="text" id="department" placeholder="Bộ phận" style="flex:1; min-width:100px">
+                <input type="date" id="date" style="flex:1; min-width:140px">
+                <button onclick="assignStaff()" style="background-color: #28a745;">✅ Giao NV Phụ Trách</button>
+                <button onclick="addNewCustomer()" class="btn-info">➕ Thêm mới KH</button>
+            </div>
+            <div class="quick-bar">
+                <div class="search-container" style="flex:2; min-width:220px;">
+                    <input type="text" id="searchInput" placeholder="🔍 Tìm kiếm chung (gõ để xem gợi ý tên KH)..." style="width:100%"
+                           autocomplete="off"
+                           oninput="showNameSuggestions()"
+                           onfocus="showNameSuggestions()"
+                           onkeydown="handleSearchKeydown(event)">
+                    <div id="searchSuggestions" class="suggestions-dropdown"></div>
+                </div>
+                <button onclick="searchCustomers()">Tìm</button>
+                <input type="text" id="staffSearchInput" placeholder="👤 Tên nhân viên phụ trách..." style="flex:1; min-width:160px">
+                <button onclick="searchByStaff()">Tìm theo NV</button>
+            </div>
         </div>
     </div>
 
@@ -665,6 +828,51 @@
     function showSortPopup(){ document.getElementById('sortPopup').style.display='block'; }
     function closeSortPopup(){ document.getElementById('sortPopup').style.display='none'; }
     function groupAndSortData(){ const field = document.getElementById('sortField').value; customers.sort((a,b)=>(a[field]||'').localeCompare(b[field]||'')); renderTable(); closeSortPopup(); }
+
+    // ==================== MENU QUẢN TRỊ - DROPDOWN & THU GỌN ====================
+    function toggleAdminMenu(e, menuId) {
+        if (e) { e.stopPropagation(); }
+        const target = document.getElementById(menuId);
+        if (!target) return;
+        const isOpen = target.classList.contains('show');
+
+        // Đóng tất cả menu khác
+        document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('show'));
+        document.querySelectorAll('.menu-trigger').forEach(b => b.classList.remove('active'));
+
+        // Toggle menu hiện tại
+        if (!isOpen) {
+            target.classList.add('show');
+            const trigger = target.parentElement.querySelector('.menu-trigger');
+            if (trigger) trigger.classList.add('active');
+        }
+    }
+
+    function toggleControlPanel() {
+        const panel = document.getElementById('controlPanel');
+        const btn = document.getElementById('toggleControlBtn');
+        if (!panel || !btn) return;
+        panel.classList.toggle('collapsed');
+        if (panel.classList.contains('collapsed')) {
+            btn.textContent = '⚙️ Hiện menu';
+            btn.title = 'Hiện lại các thanh công cụ';
+        } else {
+            btn.textContent = '⚙️ Thu gọn menu';
+            btn.title = 'Ẩn menu để mở rộng bảng dữ liệu';
+            // Đóng tất cả dropdown khi mở lại panel
+            document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('show'));
+            document.querySelectorAll('.menu-trigger').forEach(b => b.classList.remove('active'));
+        }
+    }
+
+    // Đóng dropdown menu khi click ra ngoài (không xung đột với autocomplete)
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.menu-group')) {
+            document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('show'));
+            document.querySelectorAll('.menu-trigger').forEach(b => b.classList.remove('active'));
+        }
+    });
+    // ==================== HẾT MENU QUẢN TRỊ ====================
 
     // ==================== TÌM KIẾM CHUNG NÂNG CẤP - GỢI Ý TÊN KHÁCH HÀNG ====================
     let currentSuggestionIdx = -1;
