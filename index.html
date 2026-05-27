@@ -402,6 +402,47 @@
     <div id="sortPopup" class="popup"><div class="popup-header"><h3>Sắp xếp theo</h3><span class="close-button" onclick="closeSortPopup()">&times;</span></div><select id="sortField"><option value="code">Mã</option><option value="area">Khu vực</option><option value="staff">Nhân viên phụ trách</option></select><button onclick="groupAndSortData()">Sắp xếp</button></div>
     <div id="warningPopup" class="popup"><div class="popup-header"><h3>Cảnh báo!</h3><span class="close-button" onclick="closeWarning()">&times;</span></div><div class="popup-content"></div></div>
     <div id="reminderPopup" class="popup"><div class="popup-header"><h3>🔔 EM ƠI ! SAO KHÔNG TƯƠNG TÁC KHÁCH HÀNG NÀY CÓ ĐƠN</h3></div><div id="reminderContent"></div><button onclick="closeReminderPopup()">Đã đọc</button></div>
+    <!-- ==================== POPUP LỌC XUẤT EXCEL "KH KHÔNG ĐẶT HÀNG" ==================== -->
+    <div id="exportReportPopup" class="popup" style="max-width:560px;">
+        <div class="popup-header">
+            <h3 style="margin:0; color:#d32f2f;">📊 Xuất Excel — KH KHÔNG ĐẶT HÀNG</h3>
+            <span class="close-button" onclick="closeExportReportPopup()">&times;</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+            <p style="margin:0; color:#555; font-size:13px; line-height:1.5;">
+                Lọc danh sách khách hàng <strong>chưa đặt hàng</strong> theo
+                <strong>Nhân viên phụ trách</strong> và <strong>Danh mục</strong>, sau đó xuất file Excel.
+            </p>
+
+            <div>
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:5px; color:#333;">👤 Nhân viên phụ trách</label>
+                <select id="reportStaffSelect" onchange="updateExportReportPreview()"
+                        style="width:100%; padding:9px; border:1px solid #ced4da; border-radius:6px; font-size:13px; background:#fff;">
+                    <option value="__ALL__">— Tất cả nhân viên —</option>
+                </select>
+            </div>
+
+            <div>
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:5px; color:#333;">🏷️ Danh mục</label>
+                <select id="reportCategorySelect" onchange="updateExportReportPreview()"
+                        style="width:100%; padding:9px; border:1px solid #ced4da; border-radius:6px; font-size:13px; background:#fff;">
+                    <option value="__ALL__">— Tất cả danh mục —</option>
+                    <option value="MEDICINE">💊 Thuốc (Danh mục có chứa từ "Thuốc")</option>
+                    <option value="NON_MEDICINE">📦 Không phải thuốc</option>
+                </select>
+            </div>
+
+            <div id="exportReportPreview"
+                 style="background:#f0f7ff; border-left:4px solid #2196f3; padding:10px 12px; border-radius:6px; font-size:13px; color:#0d47a1; line-height:1.5;"></div>
+
+            <div style="display:flex; gap:8px; justify-content:flex-end; border-top:1px solid #eee; padding-top:12px;">
+                <button class="btn-secondary" onclick="closeExportReportPopup()">Hủy</button>
+                <button class="btn-success" onclick="doExportExcelReport()">📥 Xuất Excel</button>
+            </div>
+        </div>
+    </div>
+    <!-- ==================== HẾT POPUP LỌC XUẤT EXCEL ==================== -->
+
     <div id="popupOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999;"></div>
 
 <script>
@@ -816,12 +857,163 @@
               `Bạn có thể upload lại file này bằng nút "📂 Upload Excel DSKH" để đồng bộ định dạng.`);
     }
     // ==================== HẾT PHẦN XUẤT EXCEL ĐẦY ĐỦ ====================
-    function exportExcelReport() {
-        const filtered = customers.filter(c => !c.ordered && !c.medicineOrdered);
-        if(filtered.length===0){ alert("Không có khách hàng chưa đặt hàng"); return; }
-        const data = filtered.map(c => ({ "KHÁCH HÀNG": c.name || "", "NGƯỜI LIÊN HỆ": c.contact || "", "ĐIỆN THOẠI": c.phone || "", "ĐỊA CHỈ": c.address || "", "KHU VỰC": c.area || "", "NGƯỜI PHỤ TRÁCH": c.staff || "", "THUỐC": c.medicineCategory || "" }));
-        const ws = XLSX.utils.json_to_sheet(data); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "KhachHangChuaDat"); XLSX.writeFile(wb, `KhachHang_chua_dat_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.xlsx`);
+    // ==================== XUẤT EXCEL "KH KHÔNG ĐẶT HÀNG" CÓ LỌC NV + DANH MỤC ====================
+
+    // Kiểm tra 1 KH có danh mục là "Thuốc" hay không (so khớp không dấu, có chứa từ "thuoc")
+    function isMedicineCategory(c) {
+        const v = removeAccents(String(c.medicineCategory || "").toLowerCase());
+        return v.includes("thuoc");
     }
+
+    // Lấy danh sách tên Nhân viên phụ trách duy nhất trong nhóm KH chưa đặt hàng
+    function getUniqueStaffNames(list) {
+        const map = new Map(); // key = tên không dấu, value = tên hiển thị gốc
+        list.forEach(c => {
+            const name = String(c.staff || "").trim();
+            if (!name) return;
+            const key = removeAccents(name.toLowerCase());
+            if (!map.has(key)) map.set(key, name);
+        });
+        return Array.from(map.values()).sort((a, b) => a.localeCompare(b, 'vi'));
+    }
+
+    // Mở popup lọc xuất Excel
+    function exportExcelReport() {
+        if (!customers || customers.length === 0) {
+            alert("Không có dữ liệu để xuất. Vui lòng tải dữ liệu lên trước.");
+            return;
+        }
+        const notOrdered = customers.filter(c => !c.ordered && !c.medicineOrdered);
+        if (notOrdered.length === 0) {
+            alert("🎉 Tất cả khách hàng đều đã đặt hàng — không có khách hàng nào chưa đặt.");
+            return;
+        }
+
+        // Đổ danh sách Nhân viên phụ trách vào dropdown (lấy từ dữ liệu thật)
+        const sel = document.getElementById('reportStaffSelect');
+        const staffNames = getUniqueStaffNames(notOrdered);
+        sel.innerHTML = '<option value="__ALL__">— Tất cả nhân viên —</option>' +
+            staffNames.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+
+        // Nếu ô "Họ tên nhân viên" phía trên đã nhập, tự chọn đúng nhân viên đó cho tiện
+        const typed = document.getElementById('fullName').value.trim();
+        if (typed) {
+            const typedKey = removeAccents(typed.toLowerCase());
+            const matched = staffNames.find(n => removeAccents(n.toLowerCase()) === typedKey);
+            if (matched) sel.value = matched;
+        }
+
+        document.getElementById('reportCategorySelect').value = "__ALL__";
+        document.getElementById('exportReportPopup').style.display = 'block';
+        document.getElementById('popupOverlay').style.display = 'block';
+        updateExportReportPreview();
+
+        // Đóng dropdown menu quản trị cho gọn
+        document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('show'));
+        document.querySelectorAll('.menu-trigger').forEach(b => b.classList.remove('active'));
+    }
+
+    function closeExportReportPopup() {
+        document.getElementById('exportReportPopup').style.display = 'none';
+        document.getElementById('popupOverlay').style.display = 'none';
+    }
+
+    // Lấy danh sách KH đã lọc theo lựa chọn hiện tại trên popup
+    function getFilteredReportList() {
+        const staffVal = document.getElementById('reportStaffSelect').value;
+        const catVal = document.getElementById('reportCategorySelect').value;
+
+        // Gốc: chỉ KH chưa đặt hàng (cả non-drugs lẫn thuốc đều chưa)
+        let list = customers.filter(c => !c.ordered && !c.medicineOrdered);
+
+        // Lọc theo Nhân viên phụ trách (so khớp không dấu, chính xác cả tên)
+        if (staffVal && staffVal !== "__ALL__") {
+            const key = removeAccents(staffVal.toLowerCase());
+            list = list.filter(c => removeAccents(String(c.staff || "").toLowerCase()) === key);
+        }
+
+        // Lọc theo Danh mục: Thuốc / Không phải thuốc / Tất cả
+        if (catVal === "MEDICINE") {
+            list = list.filter(c => isMedicineCategory(c));
+        } else if (catVal === "NON_MEDICINE") {
+            list = list.filter(c => !isMedicineCategory(c));
+        }
+        return list;
+    }
+
+    // Cập nhật bản xem trước số lượng theo bộ lọc
+    function updateExportReportPreview() {
+        const list = getFilteredReportList();
+        const med = list.filter(c => isMedicineCategory(c)).length;
+        const non = list.length - med;
+        const box = document.getElementById('exportReportPreview');
+        if (!box) return;
+        box.innerHTML = list.length === 0
+            ? '⚠️ Không có khách hàng nào khớp với bộ lọc đã chọn.'
+            : `✅ Sẽ xuất <strong>${list.length}</strong> khách hàng chưa đặt hàng` +
+              ` &nbsp;|&nbsp; 💊 Thuốc: <strong>${med}</strong>` +
+              ` &nbsp;|&nbsp; 📦 Không phải thuốc: <strong>${non}</strong>`;
+    }
+
+    // Thực hiện xuất Excel theo định dạng:
+    // Người liên hệ - Điện thoại - Tên khách hàng - Địa chỉ - Nhân viên phụ trách - Danh mục
+    function doExportExcelReport() {
+        const list = getFilteredReportList();
+        if (list.length === 0) {
+            alert("Không có khách hàng nào khớp với bộ lọc đã chọn.");
+            return;
+        }
+
+        const staffVal = document.getElementById('reportStaffSelect').value;
+        const catVal = document.getElementById('reportCategorySelect').value;
+
+        const data = list.map(c => ({
+            "Người liên hệ": c.contact || "",
+            "Điện thoại": c.phone || "",
+            "Tên khách hàng": c.name || "",
+            "Địa chỉ": c.address || "",
+            "Nhân viên phụ trách": c.staff || "",
+            "Danh mục": isMedicineCategory(c) ? "Thuốc" : "Không phải thuốc"
+        }));
+
+        const headerOrder = [
+            "Người liên hệ", "Điện thoại", "Tên khách hàng",
+            "Địa chỉ", "Nhân viên phụ trách", "Danh mục"
+        ];
+        const ws = XLSX.utils.json_to_sheet(data, { header: headerOrder });
+        ws['!cols'] = [
+            { wch: 24 }, // Người liên hệ
+            { wch: 14 }, // Điện thoại
+            { wch: 34 }, // Tên khách hàng
+            { wch: 38 }, // Địa chỉ
+            { wch: 22 }, // Nhân viên phụ trách
+            { wch: 16 }  // Danh mục
+        ];
+        // Cố định hàng tiêu đề khi mở Excel
+        if (!ws['!sheetView']) ws['!sheetView'] = [{ state: 'frozen', ySplit: 1 }];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "KH_KhongDatHang");
+
+        // Tên file gợi nhớ theo bộ lọc
+        const staffPart = (staffVal && staffVal !== "__ALL__")
+            ? `_${removeAccents(staffVal).replace(/[^a-zA-Z0-9]/g, '')}`
+            : "_TatCaNV";
+        const catPart = catVal === "MEDICINE" ? "_Thuoc"
+                      : (catVal === "NON_MEDICINE" ? "_KhongThuoc" : "");
+        const dateStr = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const fileName = `KH_KhongDatHang${staffPart}${catPart}_${dateStr}.xlsx`;
+
+        XLSX.writeFile(wb, fileName);
+        closeExportReportPopup();
+
+        const med = list.filter(c => isMedicineCategory(c)).length;
+        alert(`✅ Đã xuất ${list.length} khách hàng chưa đặt hàng ra file:\n${fileName}\n\n` +
+              `• Nhân viên: ${staffVal === "__ALL__" ? "Tất cả" : staffVal}\n` +
+              `• Danh mục: ${catVal === "MEDICINE" ? "Thuốc" : (catVal === "NON_MEDICINE" ? "Không phải thuốc" : "Tất cả")}\n` +
+              `• Trong đó danh mục Thuốc: ${med}`);
+    }
+    // ==================== HẾT XUẤT EXCEL "KH KHÔNG ĐẶT HÀNG" ====================
     function updateData() { alert("Sử dụng Upload Excel DSKH để nạp danh sách mới."); }
     function saveToLocalStorage(key){ if(!key){ alert("Nhập mã ứng dụng"); return; } localStorage.setItem(`data_${key}`, JSON.stringify(customers)); alert("Đã lưu vào LocalStorage"); }
     function loadFromLocalStorage(key){ if(!key){ alert("Nhập mã ứng dụng"); return; } const data = localStorage.getItem(`data_${key}`); if(data){ customers=JSON.parse(data); renderTable(); alert("Đã tải từ LocalStorage"); } }
