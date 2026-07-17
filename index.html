@@ -402,6 +402,31 @@
     <div id="sortPopup" class="popup"><div class="popup-header"><h3>Sắp xếp theo</h3><span class="close-button" onclick="closeSortPopup()">&times;</span></div><select id="sortField"><option value="code">Mã</option><option value="area">Khu vực</option><option value="staff">Nhân viên phụ trách</option></select><button onclick="groupAndSortData()">Sắp xếp</button></div>
     <div id="warningPopup" class="popup"><div class="popup-header"><h3>Cảnh báo!</h3><span class="close-button" onclick="closeWarning()">&times;</span></div><div class="popup-content"></div></div>
     <div id="reminderPopup" class="popup"><div class="popup-header"><h3>🔔 EM ƠI ! SAO KHÔNG TƯƠNG TÁC KHÁCH HÀNG NÀY CÓ ĐƠN</h3></div><div id="reminderContent"></div><button onclick="closeReminderPopup()">Đã đọc</button></div>
+    <!-- ==================== POPUP ĐỔI TÊN NHÂN VIÊN (ĐỒNG LOẠT) ==================== -->
+    <div id="renameStaffPopup" class="popup" style="max-width:420px;">
+        <div class="popup-header">
+            <h3 style="margin:0; color:#d32f2f;">✏️ Đổi tên nhân viên phụ trách</h3>
+            <span class="close-button" onclick="closeRenameStaffPopup()">&times;</span>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            <p style="margin:0; color:#555; font-size:13px; line-height:1.5;">
+                Đổi tên sẽ áp dụng cho <strong>tất cả</strong> khách hàng đang có nhân viên phụ trách là tên cũ bên dưới.
+            </p>
+            <div>
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:5px; color:#333;">Tên cũ</label>
+                <input type="text" id="renameStaffOld" readonly style="background:#f0f0f0; color:#555;">
+            </div>
+            <div>
+                <label style="font-weight:600; font-size:13px; display:block; margin-bottom:5px; color:#333;">Tên mới</label>
+                <input type="text" id="renameStaffNew" placeholder="Nhập tên mới...">
+            </div>
+            <div id="renameStaffCount" style="font-size:12px; color:#1976d2;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn-secondary" onclick="closeRenameStaffPopup()">Hủy</button>
+                <button class="btn-success" onclick="confirmRenameStaff()">✅ Đổi tên</button>
+            </div>
+        </div>
+    </div>
     <!-- ==================== POPUP LỌC XUẤT EXCEL "KH KHÔNG ĐẶT HÀNG" ==================== -->
     <div id="exportReportPopup" class="popup" style="max-width:560px;">
         <div class="popup-header">
@@ -515,7 +540,12 @@
                 <td><input type="text" value="${escapeHtml(c.email||'')}" onchange="updateCustomer(${idx}, 'email', this.value)"></td>
                 <td><input type="text" value="${escapeHtml(c.area||'')}" onchange="updateCustomer(${idx}, 'area', this.value)"></td>
                 <td><input type="text" value="${escapeHtml(c.address||'')}" onchange="updateCustomer(${idx}, 'address', this.value)"></td>
-                <td><input type="text" value="${escapeHtml(c.staff||'')}" onchange="updateCustomer(${idx}, 'staff', this.value)"></td>
+                <td class="staff-cell">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <input type="text" style="flex:1;" value="${escapeHtml(c.staff||'')}" onchange="updateCustomer(${idx}, 'staff', this.value)">
+                        <button type="button" class="btn-rename-staff" title="Đổi tên nhân viên này (áp dụng cho tất cả)" onclick="openRenameStaffPopup(${idx})" style="padding:2px 6px; margin:0; background-color:#6c757d;">✏️</button>
+                    </div>
+                </td>
                 <td id="med-cat-${idx}">${renderMedicineCategory(c.medicineCategory)}</td>
                 <td class="checkbox-cell"><input type="checkbox" ${c.ordered ? 'checked' : ''} onchange="updateCustomer(${idx}, 'ordered', this.checked)"></td>
                 <td class="checkbox-cell"><input type="checkbox" ${c.medicineOrdered ? 'checked' : ''} onchange="updateCustomer(${idx}, 'medicineOrdered', this.checked)"></td>
@@ -1286,6 +1316,46 @@
         }
     }
     // ==================== HẾT PHẦN TÌM KIẾM NÂNG CẤP ====================
+
+    // ==================== ĐỔI TÊN NHÂN VIÊN (ĐỒNG LOẠT) ====================
+    let renameStaffOldValue = '';
+    function openRenameStaffPopup(idx){
+        const oldName = (customers[idx] && customers[idx].staff ? customers[idx].staff : '').trim();
+        if(!oldName){ alert('Ô này chưa có tên nhân viên để đổi.'); return; }
+        renameStaffOldValue = oldName;
+        document.getElementById('renameStaffOld').value = oldName;
+        document.getElementById('renameStaffNew').value = oldName;
+        const count = customers.filter(c => (c.staff||'').trim().toLowerCase() === oldName.toLowerCase()).length;
+        document.getElementById('renameStaffCount').textContent = `🔎 Hiện có ${count} khách hàng đang gán cho "${oldName}"`;
+        document.getElementById('renameStaffPopup').style.display = 'block';
+        document.getElementById('popupOverlay').style.display = 'block';
+        setTimeout(() => { const inp = document.getElementById('renameStaffNew'); inp.focus(); inp.select(); }, 50);
+    }
+    function closeRenameStaffPopup(){
+        document.getElementById('renameStaffPopup').style.display = 'none';
+        document.getElementById('popupOverlay').style.display = 'none';
+    }
+    function confirmRenameStaff(){
+        const oldName = renameStaffOldValue.trim();
+        const newName = document.getElementById('renameStaffNew').value.trim();
+        if(!newName){ alert('Vui lòng nhập tên mới.'); return; }
+        if(newName.toLowerCase() === oldName.toLowerCase()){ alert('Tên mới trùng với tên cũ, không có gì để đổi.'); return; }
+        if(!confirm(`Đổi tất cả nhân viên "${oldName}" thành "${newName}"?`)) return;
+        let updated = 0;
+        customers.forEach(c => {
+            if((c.staff||'').trim().toLowerCase() === oldName.toLowerCase()){
+                c.staff = newName;
+                updated++;
+            }
+        });
+        if(updated){
+            renderTable();
+            autoSaveToFirebase();
+            alert(`Đã đổi tên cho ${updated} khách hàng: "${oldName}" → "${newName}"`);
+        }
+        closeRenameStaffPopup();
+    }
+    // ==================== HẾT PHẦN ĐỔI TÊN NHÂN VIÊN ====================
 
     function searchByStaff(){ const term = document.getElementById('staffSearchInput').value.toLowerCase(); const rows = document.querySelectorAll('#customerTable tbody tr'); rows.forEach(row=>{ const staffVal = row.cells[9]?.querySelector('input')?.value.toLowerCase()||''; row.style.display = (!term || staffVal.includes(term)) ? '' : 'none'; }); }
     function hideRows(){ const rows = document.querySelectorAll('#customerTable tbody tr'); hiddenRows=[]; rows.forEach((row,i)=>{ if(row.querySelector('td:first-child input')?.checked){ row.style.display='none'; hiddenRows.push(i); } }); }
